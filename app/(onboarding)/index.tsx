@@ -1,19 +1,29 @@
-import { useState, useCallback, useRef } from 'react';
-import { Dimensions, FlatList, ViewToken } from 'react-native';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import {
+  Dimensions,
+  FlatList,
+  ViewToken,
+  StyleSheet,
+  View,
+  Pressable,
+  Animated,
+  Easing,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MotiView } from 'moti';
-import { YStack, XStack, Text, Button } from 'tamagui';
+import { MotiView } from '../../components/MotiWrapper';
+import { Text } from 'tamagui';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Play, Sparkles, Heart, Award } from '@tamagui/lucide-icons';
 
-import { colors } from '../../constants/colors';
 import { spacing } from '../../constants/spacing';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface OnboardingSlide {
   id: string;
-  icon: string;
+  icon: React.ReactNode;
   title: string;
   description: string;
 }
@@ -21,39 +31,63 @@ interface OnboardingSlide {
 const slides: OnboardingSlide[] = [
   {
     id: '1',
-    icon: '🎬',
+    icon: <Play size={32} color="#1F2937" strokeWidth={2} />,
     title: 'Discover Amazing Content',
     description: 'Swipe through a feed of inspiring videos and posts from creators who spread positivity.',
   },
   {
     id: '2',
-    icon: '✨',
+    icon: <Sparkles size={32} color="#1F2937" strokeWidth={2} />,
     title: 'Give Supernovas',
-    description: 'When you love something, give it a Supernova! It\'s our special way of showing appreciation.',
+    description: "When you love something, give it a Supernova! It's our special way of showing appreciation.",
   },
   {
     id: '3',
-    icon: '💚',
+    icon: <Heart size={32} color="#1F2937" strokeWidth={2} />,
     title: 'Support Causes You Care About',
     description: 'Every Supernova contributes to real-world charities. Your engagement makes a difference!',
   },
   {
     id: '4',
-    icon: '⭐',
+    icon: <Award size={32} color="#1F2937" strokeWidth={2} />,
     title: 'Earn Karma',
     description: 'Engage with content to earn karma. Reach 100 karma to unlock the power to give Supernovas!',
   },
 ];
 
 /**
- * Onboarding Intro Screens
- * Horizontal swipe through app features
+ * Onboarding Intro Screens - Production Quality Design
+ *
+ * Design principles:
+ * - Clean, minimal, native iOS feel
+ * - Subtle animated gradient background
+ * - Clean icon containers with borders
+ * - Solid dark button
  */
 export default function OnboardingIntro() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Animated gradient rotation
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(rotateAnim, {
+        toValue: 1,
+        duration: 20000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  }, [rotateAnim]);
+
+  const rotation = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
@@ -83,122 +117,244 @@ export default function OnboardingIntro() {
     router.push('/(onboarding)/choose-cause');
   }, [router]);
 
+  const isLastSlide = currentIndex === slides.length - 1;
+
   return (
-    <YStack
-      flex={1}
-      backgroundColor="$background"
-      paddingTop={insets.top}
-      paddingBottom={insets.bottom + spacing['4']}
-    >
-      {/* Skip Button */}
-      <XStack justifyContent="flex-end" paddingHorizontal={spacing['4']} paddingVertical={spacing['2']}>
-        <Button
-          backgroundColor="transparent"
-          color="$colorPress"
-          fontSize={16}
-          onPress={handleSkip}
-          accessibilityLabel="Skip onboarding"
+    <View style={styles.container}>
+      {/* Subtle animated gradient background */}
+      <View style={styles.backgroundContainer}>
+        <Animated.View
+          style={[
+            styles.gradientOrb,
+            { transform: [{ rotate: rotation }] }
+          ]}
         >
-          Skip
-        </Button>
-      </XStack>
+          <LinearGradient
+            colors={['#E0F2FE', '#FEF3C7', '#FCE7F3', '#E0E7FF']}
+            style={styles.orbGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
+        </Animated.View>
+      </View>
 
-      {/* Slides */}
-      <FlatList
-        ref={flatListRef}
-        data={slides}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={viewabilityConfig}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item, index }) => (
-          <YStack
-            width={SCREEN_WIDTH}
-            flex={1}
-            justifyContent="center"
-            alignItems="center"
-            paddingHorizontal={spacing['8']}
-          >
-            <MotiView
-              from={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: currentIndex === index ? 1 : 0.5, scale: currentIndex === index ? 1 : 0.9 }}
-              transition={{ type: 'spring', damping: 15 }}
-            >
-              <Text fontSize={80} textAlign="center" marginBottom={spacing['8']}>
-                {item.icon}
-              </Text>
-            </MotiView>
+      {/* Base background */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: '#FAFAFA' }]} />
 
-            <MotiView
-              from={{ opacity: 0, translateY: 20 }}
-              animate={{ opacity: currentIndex === index ? 1 : 0, translateY: 0 }}
-              transition={{ type: 'timing', duration: 400, delay: 100 }}
-            >
-              <Text
-                fontSize={28}
-                fontWeight="700"
-                color="$color"
-                textAlign="center"
-                marginBottom={spacing['4']}
-              >
-                {item.title}
-              </Text>
-            </MotiView>
-
-            <MotiView
-              from={{ opacity: 0, translateY: 20 }}
-              animate={{ opacity: currentIndex === index ? 1 : 0, translateY: 0 }}
-              transition={{ type: 'timing', duration: 400, delay: 200 }}
-            >
-              <Text
-                fontSize={16}
-                color="$colorPress"
-                textAlign="center"
-                lineHeight={24}
-              >
-                {item.description}
-              </Text>
-            </MotiView>
-          </YStack>
-        )}
+      {/* Gradient overlay */}
+      <LinearGradient
+        colors={['rgba(250,250,250,0)', 'rgba(250,250,250,0.8)', 'rgba(250,250,250,1)']}
+        locations={[0, 0.5, 0.8]}
+        style={StyleSheet.absoluteFill}
       />
 
-      {/* Bottom Section */}
-      <YStack paddingHorizontal={spacing['6']} gap={spacing['6']}>
-        {/* Page Indicators */}
-        <XStack justifyContent="center" gap={spacing['2']}>
-          {slides.map((_, index) => (
-            <MotiView
-              key={index}
-              animate={{
-                width: currentIndex === index ? 24 : 8,
-                backgroundColor: currentIndex === index ? colors.primary : colors.light.border,
-              }}
-              transition={{ type: 'spring', damping: 15 }}
-              style={{
-                height: 8,
-                borderRadius: 4,
-              }}
-            />
-          ))}
-        </XStack>
+      <View style={[styles.content, { paddingTop: insets.top + spacing['2'] }]}>
+        {/* Skip Button */}
+        <View style={styles.header}>
+          <Pressable
+            onPress={handleSkip}
+            style={({ pressed }) => [
+              styles.skipButton,
+              pressed && styles.skipButtonPressed,
+            ]}
+            accessibilityLabel="Skip onboarding"
+          >
+            <Text style={styles.skipText}>Skip</Text>
+          </Pressable>
+        </View>
 
-        {/* Continue Button */}
-        <Button
-          size="$5"
-          backgroundColor={colors.primary}
-          color="white"
-          fontWeight="600"
-          borderRadius={16}
-          pressStyle={{ scale: 0.98, opacity: 0.9 }}
-          onPress={handleNext}
-          accessibilityLabel={currentIndex === slides.length - 1 ? 'Get started' : 'Continue'}
-        >
-          {currentIndex === slides.length - 1 ? 'Get Started' : 'Continue'}
-        </Button>
-      </YStack>
-    </YStack>
+        {/* Slides */}
+        <FlatList
+          ref={flatListRef}
+          data={slides}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item, index }) => (
+            <View style={styles.slideContainer}>
+              {/* Icon with clean border */}
+              <MotiView
+                from={{ opacity: 0, scale: 0.5 }}
+                animate={{
+                  opacity: currentIndex === index ? 1 : 0.3,
+                  scale: currentIndex === index ? 1 : 0.8
+                }}
+                transition={{ type: 'spring', damping: 15 }}
+              >
+                <View style={styles.iconContainer}>
+                  {item.icon}
+                </View>
+              </MotiView>
+
+              {/* Title */}
+              <MotiView
+                from={{ opacity: 0, translateY: 20 }}
+                animate={{
+                  opacity: currentIndex === index ? 1 : 0,
+                  translateY: currentIndex === index ? 0 : 20
+                }}
+                transition={{ type: 'timing', duration: 400, delay: 100 }}
+              >
+                <Text style={styles.title}>{item.title}</Text>
+              </MotiView>
+
+              {/* Description */}
+              <MotiView
+                from={{ opacity: 0, translateY: 20 }}
+                animate={{
+                  opacity: currentIndex === index ? 1 : 0,
+                  translateY: currentIndex === index ? 0 : 20
+                }}
+                transition={{ type: 'timing', duration: 400, delay: 200 }}
+              >
+                <Text style={styles.description}>{item.description}</Text>
+              </MotiView>
+            </View>
+          )}
+        />
+
+        {/* Bottom Section */}
+        <View style={[styles.bottomSection, { paddingBottom: insets.bottom + spacing['4'] }]}>
+          {/* Page Indicators - Clean dots */}
+          <View style={styles.indicators}>
+            {slides.map((_, index) => (
+              <MotiView
+                key={index}
+                animate={{
+                  width: currentIndex === index ? 28 : 8,
+                  backgroundColor: currentIndex === index ? '#1F2937' : '#E5E7EB',
+                }}
+                transition={{ type: 'spring', damping: 15 }}
+                style={styles.indicator}
+              />
+            ))}
+          </View>
+
+          {/* Continue Button - Solid dark */}
+          <Pressable
+            onPress={handleNext}
+            style={({ pressed }) => [
+              styles.continueButton,
+              pressed && styles.continueButtonPressed,
+            ]}
+            accessibilityLabel={isLastSlide ? 'Get started' : 'Continue'}
+            accessibilityRole="button"
+          >
+            <Text style={styles.continueButtonText}>
+              {isLastSlide ? 'Get Started' : 'Continue'}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FAFAFA',
+  },
+  backgroundContainer: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+  },
+  gradientOrb: {
+    position: 'absolute',
+    top: -100,
+    left: -100,
+    width: 600,
+    height: 600,
+    opacity: 0.5,
+  },
+  orbGradient: {
+    flex: 1,
+    borderRadius: 300,
+  },
+  content: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: spacing['5'],
+    paddingVertical: spacing['2'],
+  },
+  skipButton: {
+    paddingHorizontal: spacing['4'],
+    paddingVertical: spacing['2'],
+  },
+  skipButtonPressed: {
+    opacity: 0.7,
+  },
+  skipText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  slideContainer: {
+    width: SCREEN_WIDTH,
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing['8'],
+  },
+  iconContainer: {
+    width: 88,
+    height: 88,
+    borderRadius: 24,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing['8'],
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#1F2937',
+    textAlign: 'center',
+    marginBottom: spacing['3'],
+    letterSpacing: -0.5,
+  },
+  description: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 24,
+    paddingHorizontal: spacing['4'],
+  },
+  bottomSection: {
+    paddingHorizontal: spacing['6'],
+    gap: spacing['6'],
+  },
+  indicators: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing['2'],
+  },
+  indicator: {
+    height: 8,
+    borderRadius: 4,
+  },
+  continueButton: {
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: '#1F2937',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  continueButtonPressed: {
+    transform: [{ scale: 0.99 }],
+    backgroundColor: '#374151',
+  },
+  continueButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});

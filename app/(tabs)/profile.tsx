@@ -1,29 +1,62 @@
-import { useCallback } from 'react';
-import { ScrollView, Dimensions } from 'react-native';
+import { useCallback, useRef, useEffect } from 'react';
+import {
+  ScrollView,
+  Dimensions,
+  StyleSheet,
+  View,
+  Pressable,
+  Animated,
+  Easing,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MotiView } from 'moti';
-import { YStack, XStack, Text, Button, Avatar, Image } from 'tamagui';
-import { Settings, Grid, Bookmark, Sparkles, MapPin, Link } from '@tamagui/lucide-icons';
+import { MotiView } from '../../components/MotiWrapper';
+import { Text, Avatar, Image } from 'tamagui';
+import { Settings, Grid, Bookmark, Sparkles, LogOut, Check } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 
-import { colors } from '../../constants/colors';
-import { spacing, layout } from '../../constants/spacing';
+import { spacing } from '../../constants/spacing';
 import { useAuthStore } from '../../store/authStore';
 import { causes } from '../../data/causes';
 import { mockPosts } from '../../data/posts';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const GRID_SIZE = (SCREEN_WIDTH - spacing['4'] * 2 - spacing['1'] * 2) / 3;
+const GRID_GAP = 2;
+const GRID_SIZE = (SCREEN_WIDTH - spacing['4'] * 2 - GRID_GAP * 2) / 3;
 
 /**
- * Profile Screen
- * User profile with stats, bio, and posts grid
+ * Profile Screen - Production Quality Design
+ *
+ * Design principles:
+ * - Clean, minimal, native iOS feel
+ * - Subtle animated gradient background
+ * - Clean avatar ring
+ * - Solid accents
  */
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuthStore();
+
+  // Animated gradient rotation
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(rotateAnim, {
+        toValue: 1,
+        duration: 20000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  }, [rotateAnim]);
+
+  const rotation = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   const userCause = user?.cause ? causes[user.cause as keyof typeof causes] : causes.EC;
 
@@ -46,186 +79,182 @@ export default function ProfileScreen() {
   }, [logout, router]);
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.light.background }}
-      contentContainerStyle={{
-        paddingTop: insets.top,
-        paddingBottom: insets.bottom + spacing['8'],
-      }}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Header */}
-      <XStack
-        paddingHorizontal={spacing['4']}
-        paddingVertical={spacing['3']}
-        justifyContent="space-between"
-        alignItems="center"
-      >
-        <Text fontSize={20} fontWeight="700" color="$color">
-          @{user?.username || 'demo_user'}
-        </Text>
-        <Button
-          size="$4"
-          circular
-          backgroundColor="transparent"
-          icon={<Settings size={24} color={colors.light.text} />}
-          onPress={handleSettings}
-          accessibilityLabel="Settings"
-        />
-      </XStack>
+    <View style={styles.container}>
+      {/* Subtle animated gradient background */}
+      <View style={styles.backgroundContainer}>
+        <Animated.View
+          style={[
+            styles.gradientOrb,
+            { transform: [{ rotate: rotation }] }
+          ]}
+        >
+          <LinearGradient
+            colors={['#E0F2FE', '#FEF3C7', '#FCE7F3', '#E0E7FF']}
+            style={styles.orbGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
+        </Animated.View>
+      </View>
 
-      {/* Profile Info */}
-      <MotiView
-        from={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ type: 'timing', duration: 400 }}
+      {/* Base background */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: '#FAFAFA' }]} />
+
+      {/* Gradient overlay */}
+      <LinearGradient
+        colors={['rgba(250,250,250,0)', 'rgba(250,250,250,0.8)', 'rgba(250,250,250,1)']}
+        locations={[0, 0.5, 0.8]}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top, paddingBottom: insets.bottom + spacing['8'] },
+        ]}
+        showsVerticalScrollIndicator={false}
       >
-        <YStack paddingHorizontal={spacing['4']} marginBottom={spacing['6']}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.usernameContainer}>
+            <Text style={styles.usernameText}>@{user?.username || 'demo_user'}</Text>
+            <View style={styles.verifiedBadge}>
+              <Check size={10} color="white" strokeWidth={3} />
+            </View>
+          </View>
+          <Pressable
+            onPress={handleSettings}
+            style={({ pressed }) => [styles.settingsButton, pressed && styles.buttonPressed]}
+            accessibilityLabel="Settings"
+          >
+            <Settings size={22} color="#1F2937" />
+          </Pressable>
+        </View>
+
+        {/* Profile Info */}
+        <MotiView
+          from={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ type: 'timing', duration: 400 }}
+          style={styles.profileSection}
+        >
           {/* Avatar and Stats */}
-          <XStack alignItems="center" gap={spacing['6']} marginBottom={spacing['4']}>
-            <Avatar circular size="$10">
-              <Avatar.Image src={user?.avatar || `https://i.pravatar.cc/200?u=${user?.id}`} />
-              <Avatar.Fallback backgroundColor={colors.primary}>
-                <Text color="white" fontSize={32} fontWeight="600">
-                  {user?.name?.charAt(0) || 'D'}
-                </Text>
-              </Avatar.Fallback>
-            </Avatar>
+          <View style={styles.avatarStatsRow}>
+            <View style={styles.avatarContainer}>
+              {/* Clean avatar ring - solid border */}
+              <View style={styles.avatarRing}>
+                <View style={styles.avatarInner}>
+                  <Avatar circular size="$10">
+                    <Avatar.Image src={user?.avatar || `https://i.pravatar.cc/200?u=${user?.id}`} />
+                    <Avatar.Fallback backgroundColor="#1F2937">
+                      <Text style={styles.avatarFallback}>{user?.name?.charAt(0) || 'D'}</Text>
+                    </Avatar.Fallback>
+                  </Avatar>
+                </View>
+              </View>
+            </View>
 
-            <XStack flex={1} justifyContent="space-around">
+            <View style={styles.statsContainer}>
               <StatItem value={stats.posts} label="Posts" />
               <StatItem value={stats.followers} label="Followers" />
               <StatItem value={stats.following} label="Following" />
-            </XStack>
-          </XStack>
+            </View>
+          </View>
 
           {/* Name and Bio */}
-          <YStack gap={spacing['1']} marginBottom={spacing['4']}>
-            <XStack alignItems="center" gap={spacing['2']}>
-              <Text fontSize={16} fontWeight="600" color="$color">
-                {user?.name || 'Demo User'}
-              </Text>
-              <XStack
-                backgroundColor={`${userCause.color}20`}
-                paddingHorizontal={spacing['2']}
-                paddingVertical={2}
-                borderRadius={8}
-                alignItems="center"
-                gap={4}
-              >
-                <Text fontSize={12}>{userCause.icon}</Text>
-                <Text fontSize={11} color={userCause.color} fontWeight="600">
+          <View style={styles.bioSection}>
+            <View style={styles.nameRow}>
+              <Text style={styles.nameText}>{user?.name || 'Demo User'}</Text>
+              <View style={styles.causeBadge}>
+                <Text style={styles.causeBadgeIcon}>{userCause.icon}</Text>
+                <Text style={styles.causeBadgeText}>
                   {userCause.shortName}
                 </Text>
-              </XStack>
-            </XStack>
-            <Text fontSize={14} color="$colorPress">
-              Creating positive vibes ✨ | Spreading good energy
+              </View>
+            </View>
+            <Text style={styles.bioText}>
+              Creating positive vibes | Spreading good energy
             </Text>
-          </YStack>
+          </View>
 
           {/* Karma Badge */}
-          <XStack
-            backgroundColor={`${colors.karma}15`}
-            paddingHorizontal={spacing['4']}
-            paddingVertical={spacing['3']}
-            borderRadius={12}
-            alignItems="center"
-            justifyContent="space-between"
-            marginBottom={spacing['4']}
-          >
-            <XStack alignItems="center" gap={spacing['2']}>
-              <Sparkles size={20} color={colors.karma} />
-              <Text fontWeight="600" color="$color">Karma</Text>
-            </XStack>
-            <Text fontSize={24} fontWeight="700" color={colors.karma}>
-              {user?.karma || 67}
-            </Text>
-          </XStack>
+          <View style={styles.karmaBadge}>
+            <View style={styles.karmaLeft}>
+              <View style={styles.karmaIconContainer}>
+                <Sparkles size={16} color="#F59E0B" />
+              </View>
+              <Text style={styles.karmaLabel}>Karma</Text>
+            </View>
+            <Text style={styles.karmaValue}>{user?.karma || 67}</Text>
+          </View>
 
           {/* Action Buttons */}
-          <XStack gap={spacing['3']}>
-            <Button
-              flex={1}
-              size="$4"
-              backgroundColor="$backgroundHover"
-              borderRadius={10}
-              fontWeight="600"
+          <View style={styles.actionButtons}>
+            <Pressable
+              style={({ pressed }) => [styles.actionButton, pressed && styles.buttonPressed]}
               accessibilityLabel="Edit profile"
             >
-              Edit Profile
-            </Button>
-            <Button
-              flex={1}
-              size="$4"
-              backgroundColor="$backgroundHover"
-              borderRadius={10}
-              fontWeight="600"
+              <Text style={styles.actionButtonText}>Edit Profile</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.actionButton, pressed && styles.buttonPressed]}
               accessibilityLabel="Share profile"
             >
-              Share Profile
-            </Button>
-          </XStack>
-        </YStack>
-      </MotiView>
+              <Text style={styles.actionButtonText}>Share Profile</Text>
+            </Pressable>
+          </View>
+        </MotiView>
 
-      {/* Tabs */}
-      <XStack borderBottomWidth={1} borderBottomColor="$borderColor">
-        <Button
-          flex={1}
-          backgroundColor="transparent"
-          borderBottomWidth={2}
-          borderBottomColor={colors.primary}
-          borderRadius={0}
-          paddingVertical={spacing['3']}
-          icon={<Grid size={20} color={colors.primary} />}
-          accessibilityLabel="Posts grid"
-        />
-        <Button
-          flex={1}
-          backgroundColor="transparent"
-          borderRadius={0}
-          paddingVertical={spacing['3']}
-          icon={<Bookmark size={20} color={colors.light.textSecondary} />}
-          accessibilityLabel="Saved posts"
-        />
-      </XStack>
+        {/* Tabs */}
+        <View style={styles.tabs}>
+          <Pressable style={[styles.tab, styles.tabActive]} accessibilityLabel="Posts grid">
+            <Grid size={22} color="#1F2937" />
+          </Pressable>
+          <Pressable style={styles.tab} accessibilityLabel="Saved posts">
+            <Bookmark size={22} color="#9CA3AF" />
+          </Pressable>
+        </View>
 
-      {/* Posts Grid */}
-      <XStack flexWrap="wrap" paddingHorizontal={spacing['4']} paddingTop={spacing['1']}>
-        {mockPosts.slice(0, 9).map((post, index) => (
-          <MotiView
-            key={post.id}
-            from={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: 'timing', duration: 200, delay: index * 50 }}
-            style={{ margin: spacing['0.5'] }}
-          >
-            <Image
-              source={{ uri: post.mediaUrl }}
-              width={GRID_SIZE}
-              height={GRID_SIZE}
-              borderRadius={4}
-            />
-          </MotiView>
-        ))}
-      </XStack>
+        {/* Posts Grid */}
+        <View style={styles.postsGrid}>
+          {mockPosts.slice(0, 9).map((post, index) => (
+            <MotiView
+              key={post.id}
+              from={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: 'timing', duration: 200, delay: index * 50 }}
+            >
+              <Pressable style={({ pressed }) => [styles.postItem, pressed && { opacity: 0.8 }]}>
+                <Image
+                  source={{ uri: post.mediaUrl }}
+                  width={GRID_SIZE}
+                  height={GRID_SIZE}
+                  borderRadius={2}
+                />
+              </Pressable>
+            </MotiView>
+          ))}
+        </View>
 
-      {/* Logout Button (for demo) */}
-      <YStack paddingHorizontal={spacing['4']} marginTop={spacing['8']}>
-        <Button
-          size="$4"
-          backgroundColor={colors.semantic.errorLight}
-          color={colors.semantic.error}
-          fontWeight="600"
-          borderRadius={10}
-          onPress={handleLogout}
-          accessibilityLabel="Log out"
+        {/* Logout Button */}
+        <MotiView
+          from={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ type: 'timing', duration: 400, delay: 500 }}
+          style={styles.logoutSection}
         >
-          Log Out
-        </Button>
-      </YStack>
-    </ScrollView>
+          <Pressable
+            onPress={handleLogout}
+            style={({ pressed }) => [styles.logoutButton, pressed && styles.logoutButtonPressed]}
+            accessibilityLabel="Log out"
+          >
+            <LogOut size={18} color="#EF4444" />
+            <Text style={styles.logoutButtonText}>Log Out</Text>
+          </Pressable>
+        </MotiView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -236,13 +265,267 @@ function StatItem({ value, label }: { value: number; label: string }) {
   };
 
   return (
-    <YStack alignItems="center">
-      <Text fontSize={20} fontWeight="700" color="$color">
-        {formatValue(value)}
-      </Text>
-      <Text fontSize={13} color="$colorPress">
-        {label}
-      </Text>
-    </YStack>
+    <Pressable style={({ pressed }) => [styles.statItem, pressed && { opacity: 0.7 }]}>
+      <Text style={styles.statValue}>{formatValue(value)}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </Pressable>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FAFAFA',
+  },
+  backgroundContainer: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+  },
+  gradientOrb: {
+    position: 'absolute',
+    top: -100,
+    left: -100,
+    width: 600,
+    height: 600,
+    opacity: 0.5,
+  },
+  orbGradient: {
+    flex: 1,
+    borderRadius: 300,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: spacing['4'],
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing['3'],
+  },
+  usernameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing['2'],
+  },
+  usernameText: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1F2937',
+    letterSpacing: -0.3,
+  },
+  verifiedBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#1F2937',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingsButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonPressed: {
+    transform: [{ scale: 0.95 }],
+    opacity: 0.9,
+  },
+  profileSection: {
+    marginBottom: spacing['4'],
+  },
+  avatarStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing['5'],
+    marginBottom: spacing['4'],
+  },
+  avatarContainer: {
+    alignItems: 'center',
+  },
+  avatarRing: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    borderWidth: 2,
+    borderColor: '#1F2937',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FAFAFA',
+  },
+  avatarInner: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FAFAFA',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarFallback: {
+    color: 'white',
+    fontSize: 32,
+    fontWeight: '600',
+  },
+  statsContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  statLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  bioSection: {
+    gap: spacing['1'],
+    marginBottom: spacing['4'],
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing['2'],
+  },
+  nameText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  causeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: spacing['2'],
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 4,
+  },
+  causeBadgeIcon: {
+    fontSize: 12,
+  },
+  causeBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  bioText: {
+    fontSize: 14,
+    color: '#6B7280',
+    lineHeight: 20,
+  },
+  karmaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: spacing['4'],
+    paddingVertical: spacing['3'],
+    borderRadius: 14,
+    marginBottom: spacing['4'],
+  },
+  karmaLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing['2'],
+  },
+  karmaIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: 'white',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  karmaLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  karmaValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#F59E0B',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: spacing['3'],
+  },
+  actionButton: {
+    flex: 1,
+    height: 40,
+    backgroundColor: 'white',
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  tabs: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    marginBottom: spacing['1'],
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: spacing['3'],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabActive: {
+    borderBottomWidth: 2,
+    borderBottomColor: '#1F2937',
+    marginBottom: -1,
+  },
+  postsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: GRID_GAP,
+  },
+  postItem: {
+    // Size set inline
+  },
+  logoutSection: {
+    marginTop: spacing['8'],
+    paddingHorizontal: spacing['2'],
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 48,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 12,
+    gap: spacing['2'],
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  logoutButtonPressed: {
+    transform: [{ scale: 0.98 }],
+    opacity: 0.9,
+  },
+  logoutButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#EF4444',
+  },
+});

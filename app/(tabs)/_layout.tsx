@@ -1,13 +1,15 @@
 import { Tabs } from 'expo-router';
+import { StyleSheet, View, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Home, Video, PlusCircle, Sparkles, User } from '@tamagui/lucide-icons';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 
 import { colors } from '../../constants/colors';
-import { layout } from '../../constants/spacing';
 
 /**
- * Main App Tab Navigator
+ * Main App Tab Navigator - Premium Design
  * 5 tabs: Home, Video Feed, Create, Karma, Profile
  */
 export default function TabLayout() {
@@ -18,18 +20,40 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.light.textSecondary,
+        tabBarInactiveTintColor: colors.light.textTertiary,
         tabBarStyle: {
-          height: layout.tabBarHeight + insets.bottom,
-          paddingTop: 8,
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 80 + insets.bottom,
+          paddingTop: 12,
           paddingBottom: insets.bottom + 8,
-          borderTopWidth: 1,
-          borderTopColor: colors.light.border,
-          backgroundColor: colors.light.background,
+          paddingHorizontal: 8,
+          backgroundColor: Platform.OS === 'ios' ? 'transparent' : colors.light.background,
+          borderTopWidth: 0,
+          elevation: 0,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.05,
+          shadowRadius: 12,
         },
+        tabBarBackground: () => (
+          Platform.OS === 'ios' ? (
+            <BlurView
+              intensity={80}
+              tint="light"
+              style={StyleSheet.absoluteFill}
+            />
+          ) : null
+        ),
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: '500',
+          fontWeight: '600',
+          marginTop: 4,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 4,
         },
       }}
       screenListeners={{
@@ -43,7 +67,13 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <Home size={layout.tabBarIconSize} color={color} strokeWidth={focused ? 2.5 : 2} />
+            <View style={[styles.iconContainer, focused && styles.iconContainerActive]}>
+              <Home
+                size={24}
+                color={focused ? colors.primary : color}
+                strokeWidth={focused ? 2.5 : 2}
+              />
+            </View>
           ),
         }}
       />
@@ -52,20 +82,31 @@ export default function TabLayout() {
         options={{
           title: 'Videos',
           tabBarIcon: ({ color, focused }) => (
-            <Video size={layout.tabBarIconSize} color={color} strokeWidth={focused ? 2.5 : 2} />
+            <View style={[styles.iconContainer, focused && styles.iconContainerActive]}>
+              <Video
+                size={24}
+                color={focused ? colors.primary : color}
+                strokeWidth={focused ? 2.5 : 2}
+              />
+            </View>
           ),
         }}
       />
       <Tabs.Screen
         name="create"
         options={{
-          title: 'Create',
-          tabBarIcon: ({ color, focused }) => (
-            <PlusCircle
-              size={layout.tabBarIconSize + 4}
-              color={focused ? colors.primary : color}
-              strokeWidth={focused ? 2.5 : 2}
-            />
+          title: '',
+          tabBarIcon: ({ focused }) => (
+            <View style={styles.createButtonContainer}>
+              <LinearGradient
+                colors={[colors.primary, colors.primaryDark]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.createButton}
+              >
+                <PlusCircle size={28} color="white" strokeWidth={2.5} />
+              </LinearGradient>
+            </View>
           ),
         }}
       />
@@ -74,12 +115,16 @@ export default function TabLayout() {
         options={{
           title: 'Karma',
           tabBarIcon: ({ color, focused }) => (
-            <Sparkles
-              size={layout.tabBarIconSize}
-              color={focused ? colors.karma : color}
-              strokeWidth={focused ? 2.5 : 2}
-            />
+            <View style={[styles.iconContainer, focused && styles.iconContainerActive]}>
+              <Sparkles
+                size={24}
+                color={focused ? colors.karma : color}
+                strokeWidth={focused ? 2.5 : 2}
+                fill={focused ? `${colors.karma}30` : 'transparent'}
+              />
+            </View>
           ),
+          tabBarActiveTintColor: colors.karma,
         }}
       />
       <Tabs.Screen
@@ -87,10 +132,44 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, focused }) => (
-            <User size={layout.tabBarIconSize} color={color} strokeWidth={focused ? 2.5 : 2} />
+            <View style={[styles.iconContainer, focused && styles.iconContainerActive]}>
+              <User
+                size={24}
+                color={focused ? colors.primary : color}
+                strokeWidth={focused ? 2.5 : 2}
+              />
+            </View>
           ),
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  iconContainer: {
+    width: 40,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+  },
+  iconContainerActive: {
+    backgroundColor: `${colors.primary}10`,
+  },
+  createButtonContainer: {
+    marginTop: -20,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  createButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

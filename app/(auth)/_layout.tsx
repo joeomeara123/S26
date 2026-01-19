@@ -1,8 +1,10 @@
 import { Stack } from 'expo-router';
+import { colors } from '../../constants/colors';
 
 /**
  * Auth flow layout
  * Contains: Welcome, Login, Signup, OTP, Forgot Password
+ * Premium design with consistent backgrounds
  */
 export default function AuthLayout() {
   return (
@@ -10,7 +12,7 @@ export default function AuthLayout() {
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
-        contentStyle: { backgroundColor: 'transparent' },
+        contentStyle: { backgroundColor: colors.light.background },
       }}
     >
       <Stack.Screen name="welcome" />
@@ -18,8 +20,9 @@ export default function AuthLayout() {
       <Stack.Screen
         name="signup"
         options={{
-          animation: 'slide_from_bottom',
-          presentation: 'modal',
+          animation: 'slide_from_right',
+          presentation: 'card',
+          contentStyle: { backgroundColor: colors.light.background },
         }}
       />
       <Stack.Screen name="otp" />

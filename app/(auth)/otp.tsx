@@ -1,31 +1,64 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { StyleSheet, TextInput, Keyboard } from 'react-native';
+import {
+  StyleSheet,
+  TextInput,
+  Keyboard,
+  View,
+  Pressable,
+  Animated,
+  Easing,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MotiView } from 'moti';
-import { YStack, XStack, Text, Button, Spinner } from 'tamagui';
+import { MotiView } from '../../components/MotiWrapper';
+import { Text, Spinner } from 'tamagui';
 import * as Haptics from 'expo-haptics';
 import { ChevronLeft } from '@tamagui/lucide-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { useAuthStore } from '../../store/authStore';
-import { colors } from '../../constants/colors';
 import { spacing } from '../../constants/spacing';
 
 const OTP_LENGTH = 6;
 
 /**
- * OTP Verification Screen
- * 6-digit code input with auto-focus and countdown timer
+ * OTP Verification Screen - Production Quality Design
+ *
+ * Design principles:
+ * - Clean, minimal, native iOS feel
+ * - Subtle animated gradient background
+ * - Clean OTP boxes with thin borders
+ * - Solid dark verify button
  */
 export default function OTPScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { verifyOTP, isLoading, user } = useAuthStore();
+  const { verifyOTP, isLoading, user, pendingPhone } = useAuthStore();
 
   const [code, setCode] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [error, setError] = useState('');
   const [resendTimer, setResendTimer] = useState(30);
+  const [focusedIndex, setFocusedIndex] = useState(0);
   const inputRefs = useRef<(TextInput | null)[]>([]);
+
+  // Animated gradient rotation
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(rotateAnim, {
+        toValue: 1,
+        duration: 20000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  }, [rotateAnim]);
+
+  const rotation = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   // Countdown timer for resend
   useEffect(() => {
@@ -54,12 +87,10 @@ export default function OTPScreen() {
 
         if (isValid) {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          // Navigate to onboarding for new users
           router.replace('/(onboarding)');
         } else {
           setError('Invalid code. Please try again.');
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          // Clear the code
           setCode(Array(OTP_LENGTH).fill(''));
           inputRefs.current[0]?.focus();
         }
@@ -73,7 +104,6 @@ export default function OTPScreen() {
 
   const handleChange = useCallback(
     (index: number, value: string) => {
-      // Only allow digits
       const digit = value.replace(/[^0-9]/g, '');
 
       if (digit.length <= 1) {
@@ -81,15 +111,15 @@ export default function OTPScreen() {
         newCode[index] = digit;
         setCode(newCode);
 
-        // Auto-focus next input
         if (digit && index < OTP_LENGTH - 1) {
           inputRefs.current[index + 1]?.focus();
+          setFocusedIndex(index + 1);
         }
       } else if (digit.length === OTP_LENGTH) {
-        // Handle paste of full code
         const digits = digit.split('');
         setCode(digits);
         inputRefs.current[OTP_LENGTH - 1]?.focus();
+        setFocusedIndex(OTP_LENGTH - 1);
       }
 
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -101,6 +131,7 @@ export default function OTPScreen() {
     (index: number, key: string) => {
       if (key === 'Backspace' && !code[index] && index > 0) {
         inputRefs.current[index - 1]?.focus();
+        setFocusedIndex(index - 1);
       }
     },
     [code]
@@ -110,8 +141,6 @@ export default function OTPScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setResendTimer(30);
     setError('');
-    // In a real app, this would trigger a new OTP
-    // For demo, just reset timer
   }, []);
 
   const handleBack = useCallback(() => {
@@ -119,165 +148,323 @@ export default function OTPScreen() {
     router.back();
   }, [router]);
 
+  const isComplete = !code.includes('');
+
+  // Display phone or email
+  const displayContact = pendingPhone
+    ? `(***) ***-${pendingPhone.slice(-4)}`
+    : user?.email || 'your email';
+
   return (
-    <YStack
-      flex={1}
-      backgroundColor="$background"
-      paddingTop={insets.top}
-      paddingBottom={insets.bottom + spacing['4']}
-      paddingHorizontal={spacing['6']}
-    >
-      {/* Header */}
-      <XStack alignItems="center" paddingVertical={spacing['4']}>
-        <Button
-          size="$4"
-          circular
-          backgroundColor="transparent"
-          icon={<ChevronLeft size={24} color={colors.light.text} />}
-          onPress={handleBack}
-          accessibilityLabel="Go back"
-        />
-      </XStack>
-
-      {/* Content */}
-      <MotiView
-        from={{ opacity: 0, translateY: 20 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 400 }}
-        style={styles.content}
-      >
-        <YStack gap={spacing['2']} marginTop={spacing['8']}>
-          <Text fontSize={28} fontWeight="700" color="$color">
-            Verify your email
-          </Text>
-          <Text fontSize={16} color="$colorPress">
-            We sent a code to{' '}
-            <Text fontWeight="600" color="$color">
-              {user?.email || 'your email'}
-            </Text>
-          </Text>
-        </YStack>
-
-        {/* OTP Input */}
-        <XStack
-          justifyContent="space-between"
-          gap={spacing['2']}
-          marginTop={spacing['10']}
-          marginBottom={spacing['6']}
+    <View style={styles.container}>
+      {/* Subtle animated gradient background */}
+      <View style={styles.backgroundContainer}>
+        <Animated.View
+          style={[
+            styles.gradientOrb,
+            { transform: [{ rotate: rotation }] }
+          ]}
         >
-          {code.map((digit, index) => (
-            <MotiView
-              key={index}
-              from={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ type: 'spring', delay: index * 50 }}
-            >
-              <YStack
-                width={52}
-                height={64}
-                borderRadius={12}
-                borderWidth={2}
-                borderColor={
-                  digit
-                    ? colors.primary
-                    : error
-                    ? colors.semantic.error
-                    : '$borderColor'
-                }
-                backgroundColor={digit ? colors.primaryMuted : '$backgroundHover'}
-                alignItems="center"
-                justifyContent="center"
-              >
-                <TextInput
-                  ref={(ref) => { inputRefs.current[index] = ref; }}
-                  style={styles.otpInput}
-                  value={digit}
-                  onChangeText={(value) => handleChange(index, value)}
-                  onKeyPress={({ nativeEvent }) =>
-                    handleKeyPress(index, nativeEvent.key)
-                  }
-                  keyboardType="number-pad"
-                  maxLength={index === 0 ? OTP_LENGTH : 1}
-                  selectTextOnFocus
-                  accessibilityLabel={`Digit ${index + 1}`}
-                />
-              </YStack>
-            </MotiView>
-          ))}
-        </XStack>
+          <LinearGradient
+            colors={['#E0F2FE', '#FEF3C7', '#FCE7F3', '#E0E7FF']}
+            style={styles.orbGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
+        </Animated.View>
+      </View>
 
-        {/* Error Message */}
-        {error && (
-          <MotiView
-            from={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
+      {/* Base background */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: '#FAFAFA' }]} />
+
+      {/* Gradient overlay */}
+      <LinearGradient
+        colors={['rgba(250,250,250,0)', 'rgba(250,250,250,0.8)', 'rgba(250,250,250,1)']}
+        locations={[0, 0.5, 0.8]}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <View style={[styles.content, { paddingTop: insets.top + spacing['2'] }]}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Pressable
+            onPress={handleBack}
+            style={({ pressed }) => [
+              styles.backButton,
+              pressed && styles.backButtonPressed,
+            ]}
+            accessibilityLabel="Go back"
+            accessibilityRole="button"
           >
-            <Text
-              color={colors.semantic.error}
-              fontSize={14}
-              textAlign="center"
-              marginBottom={spacing['4']}
-            >
-              {error}
-            </Text>
-          </MotiView>
-        )}
+            <ChevronLeft size={24} color="#1F2937" />
+          </Pressable>
+        </View>
 
-        {/* Resend Code */}
-        <XStack justifyContent="center" alignItems="center" gap={spacing['1']}>
-          <Text color="$colorPress" fontSize={14}>
-            Didn't receive the code?
-          </Text>
-          {resendTimer > 0 ? (
-            <Text color="$colorPress" fontSize={14}>
-              Resend in {resendTimer}s
+        {/* Content */}
+        <MotiView
+          from={{ opacity: 0, translateY: 20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 400 }}
+          style={styles.formContent}
+        >
+          {/* Title Section */}
+          <View style={styles.titleSection}>
+            <Text style={styles.title}>Enter code</Text>
+            <Text style={styles.subtitle}>
+              We sent a 6-digit code to{' '}
+              <Text style={styles.contactHighlight}>{displayContact}</Text>
             </Text>
-          ) : (
-            <Button
-              backgroundColor="transparent"
-              color={colors.primary}
-              fontSize={14}
-              fontWeight="600"
-              paddingHorizontal={spacing['1']}
-              onPress={handleResend}
-              accessibilityLabel="Resend verification code"
+          </View>
+
+          {/* OTP Input */}
+          <View style={styles.otpContainer}>
+            {code.map((digit, index) => (
+              <MotiView
+                key={index}
+                from={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: 'spring', delay: index * 50 }}
+              >
+                <View
+                  style={[
+                    styles.otpBox,
+                    digit && styles.otpBoxFilled,
+                    focusedIndex === index && styles.otpBoxFocused,
+                    error && !digit && styles.otpBoxError,
+                  ]}
+                >
+                  <TextInput
+                    ref={(ref) => { inputRefs.current[index] = ref; }}
+                    style={styles.otpInput}
+                    value={digit}
+                    onChangeText={(value) => handleChange(index, value)}
+                    onKeyPress={({ nativeEvent }) =>
+                      handleKeyPress(index, nativeEvent.key)
+                    }
+                    onFocus={() => setFocusedIndex(index)}
+                    keyboardType="number-pad"
+                    maxLength={index === 0 ? OTP_LENGTH : 1}
+                    selectTextOnFocus
+                    accessibilityLabel={`Digit ${index + 1}`}
+                  />
+                </View>
+              </MotiView>
+            ))}
+          </View>
+
+          {/* Error Message */}
+          {error && (
+            <MotiView
+              from={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              style={styles.errorContainer}
             >
-              Resend
-            </Button>
+              <Text style={styles.errorText}>{error}</Text>
+            </MotiView>
           )}
-        </XStack>
-      </MotiView>
 
-      {/* Verify Button */}
-      <Button
-        size="$5"
-        backgroundColor={colors.primary}
-        color="white"
-        fontWeight="600"
-        borderRadius={16}
-        pressStyle={{ scale: 0.98, opacity: 0.9 }}
-        disabled={isLoading || code.includes('')}
-        opacity={code.includes('') ? 0.6 : 1}
-        onPress={() => handleVerify(code.join(''))}
-        accessibilityLabel="Verify code"
-        accessibilityRole="button"
-      >
-        {isLoading ? <Spinner color="white" /> : 'Verify'}
-      </Button>
-    </YStack>
+          {/* Resend Code */}
+          <View style={styles.resendContainer}>
+            <Text style={styles.resendLabel}>Didn't receive the code? </Text>
+            {resendTimer > 0 ? (
+              <Text style={styles.resendTimer}>Resend in {resendTimer}s</Text>
+            ) : (
+              <Pressable onPress={handleResend}>
+                <Text style={styles.resendButton}>Resend</Text>
+              </Pressable>
+            )}
+          </View>
+        </MotiView>
+
+        {/* Verify Button */}
+        <View style={[styles.bottomSection, { paddingBottom: insets.bottom + spacing['6'] }]}>
+          <Pressable
+            onPress={() => handleVerify(code.join(''))}
+            disabled={isLoading || !isComplete}
+            style={({ pressed }) => [
+              styles.verifyButton,
+              (!isComplete || isLoading) && styles.verifyButtonDisabled,
+              pressed && isComplete && !isLoading && styles.verifyButtonPressed,
+            ]}
+            accessibilityLabel="Verify code"
+            accessibilityRole="button"
+          >
+            {isLoading ? (
+              <Spinner color="white" />
+            ) : (
+              <Text style={[
+                styles.verifyButtonText,
+                !isComplete && styles.verifyButtonTextDisabled,
+              ]}>
+                Verify
+              </Text>
+            )}
+          </Pressable>
+        </View>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FAFAFA',
+  },
+  backgroundContainer: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+  },
+  gradientOrb: {
+    position: 'absolute',
+    top: -100,
+    left: -100,
+    width: 600,
+    height: 600,
+    opacity: 0.5,
+  },
+  orbGradient: {
+    flex: 1,
+    borderRadius: 300,
+  },
   content: {
     flex: 1,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing['5'],
+    paddingVertical: spacing['2'],
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backButtonPressed: {
+    transform: [{ scale: 0.96 }],
+    backgroundColor: '#F9FAFB',
+  },
+  formContent: {
+    flex: 1,
+    paddingHorizontal: spacing['6'],
+  },
+  titleSection: {
+    marginTop: spacing['4'],
+    marginBottom: spacing['8'],
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: spacing['2'],
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    lineHeight: 22,
+  },
+  contactHighlight: {
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  otpContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing['2'],
+    marginBottom: spacing['6'],
+  },
+  otpBox: {
+    width: 48,
+    height: 56,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: 'white',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  otpBoxFilled: {
+    borderColor: '#1F2937',
+    backgroundColor: '#F9FAFB',
+  },
+  otpBoxFocused: {
+    borderColor: '#1F2937',
+    borderWidth: 2,
+  },
+  otpBoxError: {
+    borderColor: '#DC2626',
+  },
   otpInput: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: '600',
     textAlign: 'center',
     width: '100%',
     height: '100%',
-    color: '#111827',
+    color: '#1F2937',
+  },
+  errorContainer: {
+    padding: spacing['3'],
+    backgroundColor: '#FEF2F2',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    marginBottom: spacing['4'],
+  },
+  errorText: {
+    color: '#DC2626',
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  resendContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  resendLabel: {
+    fontSize: 15,
+    color: '#6B7280',
+  },
+  resendTimer: {
+    fontSize: 15,
+    color: '#9CA3AF',
+    fontWeight: '500',
+  },
+  resendButton: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  bottomSection: {
+    paddingHorizontal: spacing['6'],
+  },
+  verifyButton: {
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: '#1F2937',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  verifyButtonDisabled: {
+    backgroundColor: '#E5E7EB',
+  },
+  verifyButtonPressed: {
+    transform: [{ scale: 0.99 }],
+    backgroundColor: '#374151',
+  },
+  verifyButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  verifyButtonTextDisabled: {
+    color: '#9CA3AF',
   },
 });

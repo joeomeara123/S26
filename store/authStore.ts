@@ -18,9 +18,11 @@ interface AuthState {
   isAuthenticated: boolean;
   hasCompletedOnboarding: boolean;
   isLoading: boolean;
+  pendingPhone?: string;
 
   // Actions
   login: (email: string, password: string) => Promise<void>;
+  loginWithPhone: (phone: string) => Promise<void>;
   signup: (email: string, password: string, name: string) => Promise<void>;
   verifyOTP: (code: string) => Promise<boolean>;
   logout: () => void;
@@ -46,6 +48,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       hasCompletedOnboarding: false,
       isLoading: false,
+      pendingPhone: undefined,
 
       // Mock login - accepts any credentials for demo
       login: async (email: string, password: string) => {
@@ -59,6 +62,23 @@ export const useAuthStore = create<AuthState>()(
         set({
           user,
           isAuthenticated: true,
+          isLoading: false,
+        });
+      },
+
+      // Mock phone login - sends SMS verification
+      loginWithPhone: async (phone: string) => {
+        set({ isLoading: true, pendingPhone: phone });
+
+        // Simulate network delay (sending SMS)
+        await new Promise((resolve) => setTimeout(resolve, 600));
+
+        // Create mock user from phone number
+        const lastFour = phone.slice(-4);
+        const user = createMockUser(`phone_${lastFour}@supernova.app`, `User ${lastFour}`);
+        set({
+          user,
+          isAuthenticated: false, // Not yet until OTP
           isLoading: false,
         });
       },

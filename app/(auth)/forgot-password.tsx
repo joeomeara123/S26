@@ -1,18 +1,32 @@
-import { useState, useCallback } from 'react';
-import { StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import {
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  TextInput,
+  View,
+  Pressable,
+  Animated,
+  Easing,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MotiView } from 'moti';
-import { YStack, XStack, Text, Button, Input, Spinner } from 'tamagui';
+import { MotiView } from '../../components/MotiWrapper';
+import { Text, Spinner } from 'tamagui';
 import * as Haptics from 'expo-haptics';
-import { ChevronLeft, Mail, Check } from '@tamagui/lucide-icons';
+import { ChevronLeft, Check, ArrowLeft } from '@tamagui/lucide-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
-import { colors } from '../../constants/colors';
 import { spacing } from '../../constants/spacing';
 
 /**
- * Forgot Password Screen
- * Email input to send password reset link
+ * Forgot Password Screen - Production Quality Design
+ *
+ * Design principles:
+ * - Clean, minimal, native iOS feel
+ * - Subtle animated gradient background
+ * - White inputs with thin borders
+ * - Solid dark button
  */
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -22,6 +36,25 @@ export default function ForgotPasswordScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSent, setIsSent] = useState(false);
   const [error, setError] = useState('');
+
+  // Animated gradient rotation
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(rotateAnim, {
+        toValue: 1,
+        duration: 20000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  }, [rotateAnim]);
+
+  const rotation = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   const validateEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -58,179 +91,177 @@ export default function ForgotPasswordScreen() {
     router.back();
   }, [router]);
 
+  const isValid = email.length > 0;
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <YStack
-        flex={1}
-        backgroundColor="$background"
-        paddingTop={insets.top}
-        paddingBottom={insets.bottom + spacing['4']}
-        paddingHorizontal={spacing['6']}
-      >
-        {/* Header */}
-        <XStack alignItems="center" paddingVertical={spacing['4']}>
-          <Button
-            size="$4"
-            circular
-            backgroundColor="transparent"
-            icon={<ChevronLeft size={24} color={colors.light.text} />}
-            onPress={handleBack}
-            accessibilityLabel="Go back"
+      {/* Subtle animated gradient background */}
+      <View style={styles.backgroundContainer}>
+        <Animated.View
+          style={[
+            styles.gradientOrb,
+            { transform: [{ rotate: rotation }] }
+          ]}
+        >
+          <LinearGradient
+            colors={['#E0F2FE', '#FEF3C7', '#FCE7F3', '#E0E7FF']}
+            style={styles.orbGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
           />
-        </XStack>
+        </Animated.View>
+      </View>
+
+      {/* Base background */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: '#FAFAFA' }]} />
+
+      {/* Gradient overlay */}
+      <LinearGradient
+        colors={['rgba(250,250,250,0)', 'rgba(250,250,250,0.8)', 'rgba(250,250,250,1)']}
+        locations={[0, 0.5, 0.8]}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <View style={[styles.content, { paddingTop: insets.top + spacing['2'] }]}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Pressable
+            onPress={handleBack}
+            style={({ pressed }) => [
+              styles.backButton,
+              pressed && styles.backButtonPressed,
+            ]}
+            accessibilityLabel="Go back"
+            accessibilityRole="button"
+          >
+            <ChevronLeft size={24} color="#1F2937" />
+          </Pressable>
+        </View>
 
         {/* Content */}
         <MotiView
           from={{ opacity: 0, translateY: 20 }}
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'timing', duration: 400 }}
-          style={styles.content}
+          style={styles.formContent}
         >
           {isSent ? (
             // Success State
-            <YStack alignItems="center" paddingTop={spacing['16']}>
+            <View style={styles.successContainer}>
               <MotiView
                 from={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ type: 'spring', damping: 10 }}
               >
-                <YStack
-                  width={80}
-                  height={80}
-                  borderRadius={40}
-                  backgroundColor={colors.semantic.successLight}
-                  alignItems="center"
-                  justifyContent="center"
-                  marginBottom={spacing['6']}
-                >
-                  <Check size={40} color={colors.semantic.success} />
-                </YStack>
+                <View style={styles.successIcon}>
+                  <Check size={32} color="white" strokeWidth={3} />
+                </View>
               </MotiView>
 
-              <Text fontSize={28} fontWeight="700" color="$color" textAlign="center">
-                Check your email
-              </Text>
-              <Text
-                fontSize={16}
-                color="$colorPress"
-                textAlign="center"
-                marginTop={spacing['2']}
-              >
+              <Text style={styles.successTitle}>Check your email</Text>
+              <Text style={styles.successSubtitle}>
                 We sent a password reset link to{'\n'}
-                <Text fontWeight="600" color="$color">
-                  {email}
-                </Text>
+                <Text style={styles.emailHighlight}>{email}</Text>
               </Text>
 
-              <Button
-                size="$5"
-                backgroundColor={colors.primary}
-                color="white"
-                fontWeight="600"
-                borderRadius={16}
-                marginTop={spacing['10']}
-                width="100%"
-                pressStyle={{ scale: 0.98, opacity: 0.9 }}
+              <Pressable
                 onPress={() => router.replace('/(auth)/login')}
+                style={({ pressed }) => [
+                  styles.backToLoginButton,
+                  pressed && styles.buttonPressed,
+                ]}
                 accessibilityLabel="Back to login"
+                accessibilityRole="button"
               >
-                Back to Login
-              </Button>
-            </YStack>
+                <Text style={styles.buttonText}>Back to Login</Text>
+              </Pressable>
+            </View>
           ) : (
             // Input State
             <>
-              <YStack gap={spacing['2']} marginTop={spacing['8']}>
-                <Text fontSize={28} fontWeight="700" color="$color">
-                  Forgot password?
-                </Text>
-                <Text fontSize={16} color="$colorPress">
+              {/* Title Section */}
+              <View style={styles.titleSection}>
+                <Text style={styles.title}>Forgot password?</Text>
+                <Text style={styles.subtitle}>
                   No worries, we'll send you reset instructions.
                 </Text>
-              </YStack>
+              </View>
 
               {/* Email Input */}
-              <YStack gap={spacing['4']} marginTop={spacing['8']}>
-                <YStack gap={spacing['2']}>
-                  <Text fontSize={14} fontWeight="500" color="$color">
-                    Email
-                  </Text>
-                  <XStack
-                    alignItems="center"
-                    backgroundColor="$backgroundHover"
-                    borderRadius={12}
-                    borderWidth={1}
-                    borderColor="$borderColor"
-                    paddingLeft={spacing['3']}
-                  >
-                    <Mail size={20} color={colors.light.textSecondary} />
-                    <Input
-                      flex={1}
-                      size="$5"
-                      placeholder="Enter your email"
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      autoComplete="email"
-                      value={email}
-                      onChangeText={setEmail}
-                      borderWidth={0}
-                      backgroundColor="transparent"
-                      accessibilityLabel="Email address"
-                    />
-                  </XStack>
-                </YStack>
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Email</Text>
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="your@email.com"
+                    placeholderTextColor="#9CA3AF"
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    returnKeyType="done"
+                    onSubmitEditing={handleSendReset}
+                    accessibilityLabel="Email address"
+                  />
+                </View>
+              </View>
 
-                {/* Error Message */}
-                {error && (
-                  <MotiView
-                    from={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                  >
-                    <Text color={colors.semantic.error} fontSize={14}>
-                      {error}
-                    </Text>
-                  </MotiView>
-                )}
-
-                {/* Reset Button */}
-                <Button
-                  size="$5"
-                  backgroundColor={colors.primary}
-                  color="white"
-                  fontWeight="600"
-                  borderRadius={16}
-                  marginTop={spacing['4']}
-                  pressStyle={{ scale: 0.98, opacity: 0.9 }}
-                  disabled={isLoading}
-                  onPress={handleSendReset}
-                  accessibilityLabel="Reset password"
-                  accessibilityRole="button"
+              {/* Error Message */}
+              {error && (
+                <MotiView
+                  from={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  style={styles.errorContainer}
                 >
-                  {isLoading ? <Spinner color="white" /> : 'Reset Password'}
-                </Button>
-              </YStack>
+                  <Text style={styles.errorText}>{error}</Text>
+                </MotiView>
+              )}
+
+              {/* Reset Button */}
+              <Pressable
+                onPress={handleSendReset}
+                disabled={isLoading || !isValid}
+                style={({ pressed }) => [
+                  styles.resetButton,
+                  (!isValid || isLoading) && styles.resetButtonDisabled,
+                  pressed && isValid && !isLoading && styles.resetButtonPressed,
+                ]}
+                accessibilityLabel="Reset password"
+                accessibilityRole="button"
+              >
+                {isLoading ? (
+                  <Spinner color="white" />
+                ) : (
+                  <Text style={[
+                    styles.buttonText,
+                    !isValid && styles.buttonTextDisabled,
+                  ]}>
+                    Reset Password
+                  </Text>
+                )}
+              </Pressable>
             </>
           )}
         </MotiView>
 
-        {/* Back to Login */}
+        {/* Back to Login Link */}
         {!isSent && (
-          <XStack justifyContent="center" paddingTop={spacing['4']}>
-            <Button
-              backgroundColor="transparent"
-              color="$colorPress"
-              fontSize={14}
+          <View style={[styles.bottomLink, { paddingBottom: insets.bottom + spacing['4'] }]}>
+            <Pressable
               onPress={handleBack}
+              style={styles.backLinkButton}
               accessibilityLabel="Back to login"
             >
-              ← Back to login
-            </Button>
-          </XStack>
+              <ArrowLeft size={16} color="#6B7280" />
+              <Text style={styles.backLinkText}>Back to login</Text>
+            </Pressable>
+          </View>
         )}
-      </YStack>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -238,8 +269,187 @@ export default function ForgotPasswordScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FAFAFA',
+  },
+  backgroundContainer: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+  },
+  gradientOrb: {
+    position: 'absolute',
+    top: -100,
+    left: -100,
+    width: 600,
+    height: 600,
+    opacity: 0.5,
+  },
+  orbGradient: {
+    flex: 1,
+    borderRadius: 300,
   },
   content: {
     flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing['5'],
+    paddingVertical: spacing['2'],
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backButtonPressed: {
+    transform: [{ scale: 0.96 }],
+    backgroundColor: '#F9FAFB',
+  },
+  formContent: {
+    flex: 1,
+    paddingHorizontal: spacing['6'],
+  },
+  titleSection: {
+    marginTop: spacing['4'],
+    marginBottom: spacing['8'],
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: spacing['1'],
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  inputContainer: {
+    gap: spacing['2'],
+    marginBottom: spacing['4'],
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: spacing['4'],
+    height: 52,
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1F2937',
+    height: '100%',
+  },
+  errorContainer: {
+    padding: spacing['3'],
+    backgroundColor: '#FEF2F2',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    marginBottom: spacing['4'],
+  },
+  errorText: {
+    color: '#DC2626',
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  resetButton: {
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: '#1F2937',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing['2'],
+  },
+  resetButtonDisabled: {
+    backgroundColor: '#E5E7EB',
+  },
+  resetButtonPressed: {
+    transform: [{ scale: 0.99 }],
+    backgroundColor: '#374151',
+  },
+  buttonPressed: {
+    transform: [{ scale: 0.99 }],
+    backgroundColor: '#374151',
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  buttonTextDisabled: {
+    color: '#9CA3AF',
+  },
+  bottomLink: {
+    alignItems: 'center',
+    paddingHorizontal: spacing['6'],
+  },
+  backLinkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing['2'],
+    paddingVertical: spacing['2'],
+  },
+  backLinkText: {
+    fontSize: 15,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  // Success State
+  successContainer: {
+    flex: 1,
+    alignItems: 'center',
+    paddingTop: spacing['16'],
+  },
+  successIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#22C55E',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing['6'],
+  },
+  successTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#1F2937',
+    textAlign: 'center',
+    marginBottom: spacing['2'],
+    letterSpacing: -0.5,
+  },
+  successSubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  emailHighlight: {
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  backToLoginButton: {
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: '#1F2937',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing['10'],
+    width: '100%',
   },
 });

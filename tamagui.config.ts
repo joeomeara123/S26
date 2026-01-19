@@ -1,18 +1,50 @@
 import { createTamagui, createTokens } from 'tamagui';
 import { createInterFont } from '@tamagui/font-inter';
 import { shorthands } from '@tamagui/shorthands';
-import { themes as tamaguiThemes, tokens as tamaguiTokens } from '@tamagui/config/v3';
+import { themes as tamaguiThemes } from '@tamagui/themes';
+import { createAnimations } from '@tamagui/animations-react-native';
 import { colors } from './constants/colors';
 import { spacing, radius as radiusValues } from './constants/spacing';
+
+// Create React Native animations (no worklets needed)
+const animations = createAnimations({
+  bouncy: {
+    type: 'spring',
+    damping: 10,
+    mass: 0.9,
+    stiffness: 100,
+  },
+  lazy: {
+    type: 'spring',
+    damping: 20,
+    stiffness: 60,
+  },
+  quick: {
+    type: 'spring',
+    damping: 20,
+    mass: 1.2,
+    stiffness: 250,
+  },
+  fast: {
+    type: 'timing',
+    duration: 150,
+  },
+  medium: {
+    type: 'timing',
+    duration: 300,
+  },
+  slow: {
+    type: 'timing',
+    duration: 500,
+  },
+});
 
 // Create Inter font configuration
 const interFont = createInterFont();
 
-// Create custom tokens extending Tamagui defaults
+// Create custom tokens from scratch (no @tamagui/config dependency)
 const tokens = createTokens({
-  ...tamaguiTokens,
   color: {
-    ...tamaguiTokens.color,
     // Primary
     primary: colors.primary,
     primaryLight: colors.primaryLight,
@@ -55,9 +87,24 @@ const tokens = createTokens({
     causeHW: colors.causes.HW,
     causeMH: colors.causes.MH,
     causeAW: colors.causes.AW,
+    // Base colors needed by Tamagui
+    white: '#ffffff',
+    black: '#000000',
+    transparent: 'transparent',
   },
   space: {
-    ...tamaguiTokens.space,
+    0: 0,
+    1: 4,
+    2: 8,
+    3: 12,
+    4: 16,
+    5: 20,
+    6: 24,
+    8: 32,
+    10: 40,
+    12: 48,
+    16: 64,
+    true: 16,
     xs: spacing['1'],
     sm: spacing['2'],
     md: spacing['4'],
@@ -66,14 +113,43 @@ const tokens = createTokens({
     '2xl': spacing['12'],
     '3xl': spacing['16'],
   },
+  size: {
+    0: 0,
+    1: 4,
+    2: 8,
+    3: 12,
+    4: 16,
+    5: 20,
+    6: 24,
+    8: 32,
+    10: 40,
+    12: 48,
+    16: 64,
+    true: 44,
+  },
   radius: {
-    ...tamaguiTokens.radius,
+    0: 0,
+    1: 4,
+    2: 8,
+    3: 12,
+    4: 16,
+    5: 20,
+    6: 24,
+    true: 12,
     sm: radiusValues.sm,
     md: radiusValues.md,
     lg: radiusValues.lg,
     xl: radiusValues.xl,
     '2xl': radiusValues['2xl'],
     full: radiusValues.full,
+  },
+  zIndex: {
+    0: 0,
+    1: 100,
+    2: 200,
+    3: 300,
+    4: 400,
+    5: 500,
   },
 });
 
@@ -116,6 +192,7 @@ export const config = createTamagui({
   shouldAddPrefersColorThemes: true,
   themeClassNameOnRoot: true,
   shorthands,
+  animations,
   fonts: {
     heading: interFont,
     body: interFont,

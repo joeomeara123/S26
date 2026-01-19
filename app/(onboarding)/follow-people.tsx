@@ -1,11 +1,19 @@
-import { useState, useCallback } from 'react';
-import { ScrollView } from 'react-native';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import {
+  ScrollView,
+  StyleSheet,
+  View,
+  Pressable,
+  Animated,
+  Easing,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MotiView } from 'moti';
-import { YStack, XStack, Text, Button, Avatar, Progress } from 'tamagui';
+import { MotiView } from '../../components/MotiWrapper';
+import { Text, Avatar } from 'tamagui';
 import { Check } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { colors } from '../../constants/colors';
 import { spacing } from '../../constants/spacing';
@@ -13,11 +21,16 @@ import { useAuthStore } from '../../store/authStore';
 import { mockUsers, User } from '../../data/users';
 import { causes } from '../../data/causes';
 
-const MIN_FOLLOWS = 5; // Lowered for demo purposes (originally 30)
+const MIN_FOLLOWS = 5;
 
 /**
- * Follow People Screen
- * User must follow minimum number of people before continuing
+ * Follow People Screen - Production Quality Design
+ *
+ * Design principles:
+ * - Clean, minimal, native iOS feel
+ * - Subtle animated gradient background
+ * - Clean user cards with borders
+ * - Solid dark buttons
  */
 export default function FollowPeopleScreen() {
   const router = useRouter();
@@ -25,6 +38,25 @@ export default function FollowPeopleScreen() {
   const { completeOnboarding } = useAuthStore();
 
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
+
+  // Animated gradient rotation
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(rotateAnim, {
+        toValue: 1,
+        duration: 20000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  }, [rotateAnim]);
+
+  const rotation = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   const followCount = followedIds.size;
   const progress = Math.min((followCount / MIN_FOLLOWS) * 100, 100);
@@ -50,93 +82,123 @@ export default function FollowPeopleScreen() {
   }, [completeOnboarding, router]);
 
   return (
-    <YStack
-      flex={1}
-      backgroundColor="$background"
-      paddingTop={insets.top + spacing['4']}
-      paddingBottom={insets.bottom + spacing['4']}
-    >
-      {/* Header */}
-      <YStack paddingHorizontal={spacing['6']} marginBottom={spacing['4']}>
-        <MotiView
-          from={{ opacity: 0, translateY: -10 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: 400 }}
+    <View style={styles.container}>
+      {/* Subtle animated gradient background */}
+      <View style={styles.backgroundContainer}>
+        <Animated.View
+          style={[
+            styles.gradientOrb,
+            { transform: [{ rotate: rotation }] }
+          ]}
         >
-          <Text fontSize={28} fontWeight="700" color="$color" marginBottom={spacing['2']}>
-            Follow Creators
-          </Text>
-          <Text fontSize={16} color="$colorPress">
-            Follow at least {MIN_FOLLOWS} creators to build your personalized feed.
-          </Text>
-        </MotiView>
-      </YStack>
+          <LinearGradient
+            colors={['#E0F2FE', '#FEF3C7', '#FCE7F3', '#E0E7FF']}
+            style={styles.orbGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
+        </Animated.View>
+      </View>
 
-      {/* Progress Bar */}
-      <MotiView
-        from={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ type: 'timing', duration: 400, delay: 200 }}
-      >
-        <YStack paddingHorizontal={spacing['6']} marginBottom={spacing['6']}>
-          <XStack justifyContent="space-between" marginBottom={spacing['2']}>
-            <Text fontSize={14} fontWeight="600" color="$color">
+      {/* Base background */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: '#FAFAFA' }]} />
+
+      {/* Gradient overlay */}
+      <LinearGradient
+        colors={['rgba(250,250,250,0)', 'rgba(250,250,250,0.8)', 'rgba(250,250,250,1)']}
+        locations={[0, 0.5, 0.8]}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <View style={[styles.content, { paddingTop: insets.top + spacing['4'] }]}>
+        {/* Header */}
+        <View style={styles.header}>
+          <MotiView
+            from={{ opacity: 0, translateY: -10 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'timing', duration: 400 }}
+          >
+            <Text style={styles.title}>Follow Creators</Text>
+            <Text style={styles.subtitle}>
+              Follow at least {MIN_FOLLOWS} creators to build your personalized feed.
+            </Text>
+          </MotiView>
+        </View>
+
+        {/* Progress Bar - Clean solid style */}
+        <MotiView
+          from={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ type: 'timing', duration: 400, delay: 200 }}
+          style={styles.progressSection}
+        >
+          <View style={styles.progressHeader}>
+            <Text style={styles.progressCount}>
               {followCount} / {MIN_FOLLOWS} following
             </Text>
-            <Text fontSize={14} color={canContinue ? colors.semantic.success : '$colorPress'}>
-              {canContinue ? '✓ Ready!' : `${MIN_FOLLOWS - followCount} more`}
+            <Text style={[styles.progressStatus, canContinue && styles.progressStatusReady]}>
+              {canContinue ? 'Ready!' : `${MIN_FOLLOWS - followCount} more`}
             </Text>
-          </XStack>
-          <Progress value={progress} backgroundColor="$borderColor" height={8} borderRadius={4}>
-            <Progress.Indicator backgroundColor={canContinue ? colors.semantic.success : colors.primary} />
-          </Progress>
-        </YStack>
-      </MotiView>
-
-      {/* Users List */}
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{
-          paddingHorizontal: spacing['4'],
-          paddingBottom: spacing['4'],
-        }}
-        showsVerticalScrollIndicator={false}
-      >
-        <YStack gap={spacing['3']}>
-          {mockUsers.map((user, index) => (
+          </View>
+          <View style={styles.progressTrack}>
             <MotiView
-              key={user.id}
-              from={{ opacity: 0, translateX: -20 }}
-              animate={{ opacity: 1, translateX: 0 }}
-              transition={{ type: 'timing', duration: 250, delay: index * 60 }}
-            >
-              <UserCard
-                user={user}
-                isFollowing={followedIds.has(user.id)}
-                onToggleFollow={() => handleFollow(user.id)}
-              />
-            </MotiView>
-          ))}
-        </YStack>
-      </ScrollView>
+              animate={{ width: `${progress}%` }}
+              transition={{ type: 'timing', duration: 300 }}
+              style={[
+                styles.progressFill,
+                { backgroundColor: canContinue ? '#22C55E' : '#1F2937' }
+              ]}
+            />
+          </View>
+        </MotiView>
 
-      {/* Continue Button */}
-      <YStack paddingHorizontal={spacing['6']} paddingTop={spacing['4']}>
-        <Button
-          size="$5"
-          backgroundColor={canContinue ? colors.primary : colors.light.border}
-          color={canContinue ? 'white' : colors.light.textSecondary}
-          fontWeight="600"
-          borderRadius={16}
-          pressStyle={{ scale: 0.98, opacity: 0.9 }}
-          disabled={!canContinue}
-          onPress={handleContinue}
-          accessibilityLabel="Start using Supernova"
+        {/* Users List */}
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
-          {canContinue ? "Let's Go!" : `Follow ${MIN_FOLLOWS - followCount} more`}
-        </Button>
-      </YStack>
-    </YStack>
+          <View style={styles.usersList}>
+            {mockUsers.map((user, index) => (
+              <MotiView
+                key={user.id}
+                from={{ opacity: 0, translateX: -20 }}
+                animate={{ opacity: 1, translateX: 0 }}
+                transition={{ type: 'timing', duration: 250, delay: index * 50 }}
+              >
+                <UserCard
+                  user={user}
+                  isFollowing={followedIds.has(user.id)}
+                  onToggleFollow={() => handleFollow(user.id)}
+                />
+              </MotiView>
+            ))}
+          </View>
+        </ScrollView>
+
+        {/* Continue Button - Solid dark */}
+        <View style={[styles.bottomSection, { paddingBottom: insets.bottom + spacing['4'] }]}>
+          <Pressable
+            onPress={handleContinue}
+            disabled={!canContinue}
+            style={({ pressed }) => [
+              styles.continueButton,
+              !canContinue && styles.continueButtonDisabled,
+              pressed && canContinue && styles.continueButtonPressed,
+            ]}
+            accessibilityLabel="Start using Supernova"
+            accessibilityRole="button"
+          >
+            <Text style={[
+              styles.continueButtonText,
+              !canContinue && styles.continueButtonTextDisabled,
+            ]}>
+              {canContinue ? "Let's Go" : `Follow ${MIN_FOLLOWS - followCount} more`}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -152,73 +214,243 @@ function UserCard({
   const userCause = causes[user.cause];
 
   return (
-    <XStack
-      backgroundColor="$backgroundHover"
-      borderRadius={16}
-      padding={spacing['4']}
-      alignItems="center"
-      gap={spacing['3']}
-    >
+    <View style={styles.userCard}>
       {/* Avatar */}
       <Avatar circular size="$5">
         <Avatar.Image src={user.avatar} />
-        <Avatar.Fallback backgroundColor={colors.primary}>
-          <Text color="white" fontWeight="600">{user.name.charAt(0)}</Text>
+        <Avatar.Fallback backgroundColor="#1F2937">
+          <Text style={{ color: 'white', fontWeight: '600' }}>{user.name.charAt(0)}</Text>
         </Avatar.Fallback>
       </Avatar>
 
       {/* Info */}
-      <YStack flex={1} gap={2}>
-        <XStack alignItems="center" gap={spacing['1']}>
-          <Text fontSize={16} fontWeight="600" color="$color">
-            {user.name}
-          </Text>
+      <View style={styles.userInfo}>
+        <View style={styles.userName}>
+          <Text style={styles.userNameText}>{user.name}</Text>
           {user.isVerified && (
-            <YStack
-              width={16}
-              height={16}
-              borderRadius={8}
-              backgroundColor={colors.primary}
-              alignItems="center"
-              justifyContent="center"
-            >
-              <Check size={10} color="white" />
-            </YStack>
+            <View style={styles.verifiedBadge}>
+              <Check size={10} color="white" strokeWidth={3} />
+            </View>
           )}
-        </XStack>
-        <Text fontSize={13} color="$colorPress">
-          @{user.username}
-        </Text>
-        <XStack alignItems="center" gap={4} marginTop={2}>
-          <Text fontSize={12}>{userCause?.icon}</Text>
-          <Text fontSize={11} color={userCause?.color} fontWeight="500">
+        </View>
+        <Text style={styles.userHandle}>@{user.username}</Text>
+        <View style={styles.userMeta}>
+          <Text style={styles.userCauseIcon}>{userCause?.icon}</Text>
+          <Text style={styles.userCauseName}>
             {userCause?.shortName}
           </Text>
-          <Text fontSize={11} color="$colorPress">
+          <Text style={styles.userFollowers}>
             • {(user.followers / 1000).toFixed(1)}K followers
           </Text>
-        </XStack>
-      </YStack>
+        </View>
+      </View>
 
-      {/* Follow Button */}
-      <Button
-        size="$3"
-        backgroundColor={isFollowing ? colors.light.background : colors.primary}
-        borderWidth={isFollowing ? 1 : 0}
-        borderColor="$borderColor"
-        borderRadius={10}
-        paddingHorizontal={spacing['4']}
+      {/* Follow Button - Solid style */}
+      <Pressable
         onPress={onToggleFollow}
+        style={({ pressed }) => [
+          styles.followButton,
+          isFollowing ? styles.followButtonFollowing : styles.followButtonNotFollowing,
+          pressed && styles.followButtonPressed,
+        ]}
         accessibilityLabel={isFollowing ? `Unfollow ${user.name}` : `Follow ${user.name}`}
+        accessibilityRole="button"
       >
-        <Text
-          fontSize={13}
-          fontWeight="600"
-          color={isFollowing ? '$color' : 'white'}
-        >
+        <Text style={[styles.followButtonText, isFollowing && styles.followButtonTextFollowing]}>
           {isFollowing ? 'Following' : 'Follow'}
         </Text>
-      </Button>
-    </XStack>
+      </Pressable>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FAFAFA',
+  },
+  backgroundContainer: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+  },
+  gradientOrb: {
+    position: 'absolute',
+    top: -100,
+    left: -100,
+    width: 600,
+    height: 600,
+    opacity: 0.5,
+  },
+  orbGradient: {
+    flex: 1,
+    borderRadius: 300,
+  },
+  content: {
+    flex: 1,
+  },
+  header: {
+    paddingHorizontal: spacing['6'],
+    marginBottom: spacing['4'],
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: spacing['2'],
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    lineHeight: 22,
+  },
+  progressSection: {
+    paddingHorizontal: spacing['6'],
+    marginBottom: spacing['6'],
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing['2'],
+  },
+  progressCount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  progressStatus: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  progressStatusReady: {
+    color: '#22C55E',
+  },
+  progressTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#E5E7EB',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: spacing['4'],
+    paddingBottom: spacing['4'],
+  },
+  usersList: {
+    gap: spacing['3'],
+  },
+  userCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: spacing['4'],
+    gap: spacing['3'],
+  },
+  userInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  userName: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing['1'],
+  },
+  userNameText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  verifiedBadge: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#1F2937',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  userHandle: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  userMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  userCauseIcon: {
+    fontSize: 12,
+  },
+  userCauseName: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  userFollowers: {
+    fontSize: 11,
+    color: '#9CA3AF',
+  },
+  followButton: {
+    paddingHorizontal: spacing['4'],
+    paddingVertical: spacing['2'],
+    borderRadius: 10,
+    minWidth: 90,
+    alignItems: 'center',
+  },
+  followButtonNotFollowing: {
+    backgroundColor: '#1F2937',
+  },
+  followButtonFollowing: {
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  followButtonPressed: {
+    transform: [{ scale: 0.96 }],
+    opacity: 0.9,
+  },
+  followButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'white',
+  },
+  followButtonTextFollowing: {
+    color: '#1F2937',
+  },
+  bottomSection: {
+    paddingHorizontal: spacing['6'],
+    paddingTop: spacing['4'],
+  },
+  continueButton: {
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: '#1F2937',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  continueButtonDisabled: {
+    backgroundColor: '#E5E7EB',
+  },
+  continueButtonPressed: {
+    transform: [{ scale: 0.99 }],
+    backgroundColor: '#374151',
+  },
+  continueButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  continueButtonTextDisabled: {
+    color: '#9CA3AF',
+  },
+});
