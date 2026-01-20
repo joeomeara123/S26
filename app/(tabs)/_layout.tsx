@@ -26,9 +26,9 @@ export default function TabLayout() {
           bottom: 0,
           left: 0,
           right: 0,
-          height: 80 + insets.bottom,
-          paddingTop: 12,
-          paddingBottom: insets.bottom + 8,
+          height: 60 + insets.bottom,
+          paddingTop: 8,
+          paddingBottom: insets.bottom + 4,
           paddingHorizontal: 8,
           backgroundColor: Platform.OS === 'ios' ? 'transparent' : colors.light.background,
           borderTopWidth: 0,
@@ -104,7 +104,7 @@ export default function TabLayout() {
                 end={{ x: 1, y: 1 }}
                 style={styles.createButton}
               >
-                <PlusCircle size={28} color="white" strokeWidth={2.5} />
+                <PlusCircle size={24} color="white" strokeWidth={2.5} />
               </LinearGradient>
             </View>
           ),
@@ -158,17 +158,18 @@ const styles = StyleSheet.create({
     backgroundColor: `${colors.primary}10`,
   },
   createButtonContainer: {
-    marginTop: -20,
+    position: 'relative',
+    top: -12,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
     elevation: 8,
   },
   createButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },

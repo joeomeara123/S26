@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, View, Pressable, Dimensions } from 'react-native';
+import { useCallback, useState, useRef } from 'react';
+import { FlatList, RefreshControl, StyleSheet, View, Pressable, Dimensions, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { MotiView } from '../../components/MotiWrapper';
 import { YStack, XStack, Text, Avatar, Image } from 'tamagui';
 import { Bell, MessageCircle, Heart, MessageSquare, Share2, Star, MoreHorizontal, Bookmark } from '@tamagui/lucide-icons';
@@ -10,6 +11,12 @@ import { colors } from '../../constants/colors';
 import { spacing } from '../../constants/spacing';
 import { mockPosts, Post } from '../../data/posts';
 import { mockUsers } from '../../data/users';
+import { causes } from '../../data/causes';
+import { useAuthStore } from '../../store/authStore';
+import { useInteractionStore, SUPERNOVA_COST } from '../../store/interactionStore';
+import { SupernovaAnimation } from '../../components/SupernovaAnimation';
+import { ContributionToast, ToastType } from '../../components/ContributionToast';
+import { KarmaHint } from '../../components/KarmaHint';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -24,7 +31,44 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
  */
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
+
+  // Toast state
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastType, setToastType] = useState<ToastType>('like');
+  const [toastCause, setToastCause] = useState<string | undefined>();
+
+  // Supernova animation state
+  const [supernovaAnimating, setSupernovaAnimating] = useState(false);
+
+  // Karma hint
+  const { hasSeenKarmaHint, markKarmaHintSeen } = useInteractionStore();
+  const [showKarmaHint, setShowKarmaHint] = useState(false);
+  const interactionCount = useRef(0);
+
+  const showToast = useCallback((type: ToastType, causeName?: string) => {
+    setToastType(type);
+    setToastCause(causeName);
+    setToastVisible(true);
+  }, []);
+
+  const triggerSupernovaAnimation = useCallback(() => {
+    setSupernovaAnimating(true);
+  }, []);
+
+  const handleInteraction = useCallback(() => {
+    // Show karma hint after 2nd interaction if not seen
+    interactionCount.current += 1;
+    if (!hasSeenKarmaHint && interactionCount.current === 2) {
+      setTimeout(() => setShowKarmaHint(true), 1500);
+    }
+  }, [hasSeenKarmaHint]);
+
+  const handleKarmaHintDismiss = useCallback(() => {
+    setShowKarmaHint(false);
+    markKarmaHintSeen();
+  }, [markKarmaHintSeen]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -76,7 +120,11 @@ export default function HomeScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.storiesList}
           renderItem={({ item, index }) => (
-            <StoryAvatar user={item} isFirst={index === 0} />
+            <StoryAvatar
+              user={item}
+              isFirst={index === 0}
+              onPress={(userId) => router.push(`/(tabs)/user/${userId}` as any)}
+            />
           )}
         />
       </View>
@@ -95,7 +143,13 @@ export default function HomeScreen() {
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'timing', duration: 300, delay: index * 50 }}
           >
-            <PostCard post={item} />
+            <PostCard
+              post={item}
+              onShowToast={showToast}
+              onTriggerSupernova={triggerSupernovaAnimation}
+              onInteraction={handleInteraction}
+              onAuthorPress={(userId) => router.push(`/(tabs)/user/${userId}` as any)}
+            />
           </MotiView>
         )}
         refreshControl={
@@ -108,23 +162,55 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }}
       />
+
+      {/* Toast overlay */}
+      <ContributionToast
+        visible={toastVisible}
+        type={toastType}
+        causeName={toastCause}
+        onDismiss={() => setToastVisible(false)}
+      />
+
+      {/* Supernova animation overlay */}
+      <SupernovaAnimation
+        visible={supernovaAnimating}
+        onComplete={() => setSupernovaAnimating(false)}
+      />
+
+      {/* Karma hint tooltip */}
+      <KarmaHint
+        visible={showKarmaHint}
+        onDismiss={handleKarmaHintDismiss}
+      />
     </View>
   );
 }
 
 // Story avatar component - Clean design
-function StoryAvatar({ user, isFirst }: { user: typeof mockUsers[0]; isFirst: boolean }) {
+function StoryAvatar({ user, isFirst, onPress }: { user: typeof mockUsers[0]; isFirst: boolean; onPress?: (userId: string) => void }) {
+  const handlePress = () => {
+    if (!isFirst && onPress) {
+      onPress(user.id);
+    }
+  };
+
   return (
     <Pressable
       style={({ pressed }) => [
         styles.storyItem,
         pressed && styles.storyItemPressed,
       ]}
+      onPress={handlePress}
     >
       {isFirst ? (
         <View style={styles.addStoryContainer}>
           <Avatar circular size="$6">
             <Avatar.Image src={user.avatar} />
+            <Avatar.Fallback backgroundColor="#1F2937">
+              <Text style={{ color: 'white', fontWeight: '600', fontSize: 16 }}>
+                {user.name.charAt(0)}
+              </Text>
+            </Avatar.Fallback>
           </Avatar>
           <View style={styles.addStoryButton}>
             <Text style={styles.addStoryIcon}>+</Text>
@@ -138,6 +224,11 @@ function StoryAvatar({ user, isFirst }: { user: typeof mockUsers[0]; isFirst: bo
             <View style={styles.storyRingInner}>
               <Avatar circular size="$6">
                 <Avatar.Image src={user.avatar} />
+                <Avatar.Fallback backgroundColor="#1F2937">
+                  <Text style={{ color: 'white', fontWeight: '600', fontSize: 16 }}>
+                    {user.name.charAt(0)}
+                  </Text>
+                </Avatar.Fallback>
               </Avatar>
             </View>
           </View>
@@ -151,30 +242,101 @@ function StoryAvatar({ user, isFirst }: { user: typeof mockUsers[0]; isFirst: bo
 }
 
 // Premium post card component - Clean design
-function PostCard({ post }: { post: Post }) {
+interface PostCardProps {
+  post: Post;
+  onShowToast?: (type: ToastType, causeName?: string) => void;
+  onTriggerSupernova?: () => void;
+  onInteraction?: () => void;
+  onAuthorPress?: (userId: string) => void;
+}
+
+function PostCard({ post, onShowToast, onTriggerSupernova, onInteraction, onAuthorPress }: PostCardProps) {
   const author = mockUsers.find((u) => u.id === post.authorId) || mockUsers[0];
-  const [liked, setLiked] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const authorCause = causes[author.cause];
+
+  // Stores
+  const { deductKarma, addKarma, getKarma } = useAuthStore();
+  const {
+    isSupernovaed,
+    supernovaPost,
+    unsupernovaPost,
+    isSaved,
+    savePost,
+    unsavePost,
+    isLiked,
+    likePost,
+    unlikePost,
+  } = useInteractionStore();
+
+  // Local state for animations
   const [likeCount, setLikeCount] = useState(post.likes);
+  const [supernovaCount, setSupernovaCount] = useState(post.supernovas);
+  const [showLikeParticles, setShowLikeParticles] = useState(false);
+
+  // Derived state from stores
+  const liked = isLiked(post.id);
+  const saved = isSaved(post.id);
+  const supernovaed = isSupernovaed(post.id);
 
   const handleLike = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onInteraction?.();
+
     if (liked) {
+      unlikePost(post.id);
       setLikeCount((c) => c - 1);
     } else {
+      likePost(post.id);
       setLikeCount((c) => c + 1);
+      setShowLikeParticles(true);
+      setTimeout(() => setShowLikeParticles(false), 600);
+      // Show contribution toast
+      onShowToast?.('like', authorCause?.shortName);
     }
-    setLiked(!liked);
-  }, [liked]);
+  }, [liked, post.id, likePost, unlikePost, onInteraction, onShowToast, authorCause]);
 
   const handleSave = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSaved(!saved);
-  }, [saved]);
+
+    if (saved && !supernovaed) {
+      // Can only unsave if not supernovaed
+      unsavePost(post.id);
+    } else if (!saved) {
+      savePost(post.id);
+    }
+  }, [saved, supernovaed, post.id, savePost, unsavePost]);
 
   const handleSupernova = useCallback(() => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }, []);
+    onInteraction?.();
+
+    if (supernovaed) {
+      // Un-supernova - refund karma
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      unsupernovaPost(post.id, () => addKarma(SUPERNOVA_COST));
+      setSupernovaCount((c) => c - 1);
+    } else {
+      // Check karma balance first
+      const currentKarma = getKarma();
+      if (currentKarma < SUPERNOVA_COST) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Alert.alert(
+          'Not Enough Karma',
+          `You need ${SUPERNOVA_COST} karma to Supernova a post. You have ${currentKarma} karma.\n\nEarn karma by liking, commenting, and sharing!`,
+          [{ text: 'Got it', style: 'default' }]
+        );
+        return;
+      }
+
+      // Supernova!
+      const success = supernovaPost(post.id, () => deductKarma(SUPERNOVA_COST));
+      if (success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setSupernovaCount((c) => c + 1);
+        onTriggerSupernova?.();
+        onShowToast?.('supernova', authorCause?.shortName);
+      }
+    }
+  }, [supernovaed, post.id, supernovaPost, unsupernovaPost, deductKarma, addKarma, getKarma, onTriggerSupernova, onShowToast, onInteraction, authorCause]);
 
   const formatCount = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -186,7 +348,10 @@ function PostCard({ post }: { post: Post }) {
     <View style={styles.postCard}>
       {/* Header */}
       <View style={styles.postHeader}>
-        <Pressable style={styles.postAuthor}>
+        <Pressable
+          style={({ pressed }) => [styles.postAuthor, pressed && { opacity: 0.7 }]}
+          onPress={() => onAuthorPress?.(author.id)}
+        >
           <Avatar circular size="$4">
             <Avatar.Image src={author.avatar} />
             <Avatar.Fallback backgroundColor="#1F2937">
@@ -234,18 +399,45 @@ function PostCard({ post }: { post: Post }) {
       {/* Actions */}
       <View style={styles.actionsContainer}>
         <XStack alignItems="center" gap={spacing['4']}>
-          {/* Like */}
+          {/* Like with particle effect */}
           <Pressable onPress={handleLike} style={styles.actionButton}>
-            <MotiView
-              animate={{ scale: liked ? [1, 1.2, 1] : 1 }}
-              transition={{ type: 'timing', duration: 200 }}
-            >
-              <Heart
-                size={24}
-                color={liked ? '#EF4444' : '#1F2937'}
-                fill={liked ? '#EF4444' : 'transparent'}
-              />
-            </MotiView>
+            <View style={styles.likeContainer}>
+              <MotiView
+                animate={{ scale: liked ? [1, 1.3, 1] : 1 }}
+                transition={{ type: 'spring', damping: 10 }}
+              >
+                <Heart
+                  size={24}
+                  color={liked ? '#EF4444' : '#1F2937'}
+                  fill={liked ? '#EF4444' : 'transparent'}
+                />
+              </MotiView>
+              {/* Like particles */}
+              {showLikeParticles && (
+                <>
+                  {[...Array(6)].map((_, i) => {
+                    const angle = (i * 60 * Math.PI) / 180;
+                    const distance = 20;
+                    return (
+                      <MotiView
+                        key={i}
+                        from={{ opacity: 1, scale: 0.8, translateX: 0, translateY: 0 }}
+                        animate={{
+                          opacity: 0,
+                          scale: 0.3,
+                          translateX: Math.cos(angle) * distance,
+                          translateY: Math.sin(angle) * distance,
+                        }}
+                        transition={{ type: 'timing', duration: 500 }}
+                        style={styles.likeParticle}
+                      >
+                        <View style={[styles.particle, { backgroundColor: '#EF4444' }]} />
+                      </MotiView>
+                    );
+                  })}
+                </>
+              )}
+            </View>
             <Text style={[styles.actionCount, liked && styles.likedCount]}>
               {formatCount(likeCount)}
             </Text>
@@ -268,21 +460,28 @@ function PostCard({ post }: { post: Post }) {
           <Pressable onPress={handleSave} style={styles.actionButton}>
             <Bookmark
               size={22}
-              color={saved ? '#1F2937' : '#1F2937'}
+              color={saved ? '#1F2937' : '#6B7280'}
               fill={saved ? '#1F2937' : 'transparent'}
             />
           </Pressable>
 
-          {/* Supernova Button - Clean solid style */}
+          {/* Supernova Button - Active state when supernovaed */}
           <Pressable
             onPress={handleSupernova}
             style={({ pressed }) => [
-              styles.supernovaButton,
+              supernovaed ? styles.supernovaButtonActive : styles.supernovaButton,
               pressed && styles.supernovaButtonPressed,
             ]}
           >
-            <Star size={14} color="white" fill="white" />
-            <Text style={styles.supernovaText}>Supernova</Text>
+            <MotiView
+              animate={{ scale: supernovaed ? [1, 1.2, 1] : 1 }}
+              transition={{ type: 'spring', damping: 12 }}
+            >
+              <Star size={14} color="white" fill="white" />
+            </MotiView>
+            <Text style={styles.supernovaText}>
+              {supernovaCount > 0 ? formatCount(supernovaCount) : 'Supernova'}
+            </Text>
           </Pressable>
         </XStack>
       </View>
@@ -507,6 +706,21 @@ const styles = StyleSheet.create({
   likedCount: {
     color: '#EF4444',
   },
+  likeContainer: {
+    position: 'relative',
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  likeParticle: {
+    position: 'absolute',
+  },
+  particle: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
   supernovaButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -516,9 +730,18 @@ const styles = StyleSheet.create({
     paddingVertical: spacing['2'],
     borderRadius: 10,
   },
+  supernovaButtonActive: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#EC4899',
+    paddingHorizontal: spacing['3'],
+    paddingVertical: spacing['2'],
+    borderRadius: 10,
+  },
   supernovaButtonPressed: {
-    backgroundColor: '#374151',
     transform: [{ scale: 0.96 }],
+    opacity: 0.9,
   },
   supernovaText: {
     color: 'white',

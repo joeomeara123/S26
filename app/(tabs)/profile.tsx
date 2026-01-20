@@ -1,4 +1,4 @@
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useRef, useEffect, useState, useMemo } from 'react';
 import {
   ScrollView,
   Dimensions,
@@ -12,12 +12,13 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView } from '../../components/MotiWrapper';
 import { Text, Avatar, Image } from 'tamagui';
-import { Settings, Grid, Bookmark, Sparkles, LogOut, Check } from '@tamagui/lucide-icons';
+import { Settings, Grid, Bookmark, Sparkles, LogOut, Check, Star } from '@tamagui/lucide-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { spacing } from '../../constants/spacing';
 import { useAuthStore } from '../../store/authStore';
+import { useInteractionStore } from '../../store/interactionStore';
 import { causes } from '../../data/causes';
 import { mockPosts } from '../../data/posts';
 
@@ -34,10 +35,24 @@ const GRID_SIZE = (SCREEN_WIDTH - spacing['4'] * 2 - GRID_GAP * 2) / 3;
  * - Clean avatar ring
  * - Solid accents
  */
+type ProfileTab = 'posts' | 'saved' | 'supernovas';
+
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuthStore();
+  const { supernovaedPosts, savedPosts } = useInteractionStore();
+  const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
+
+  // Get supernovaed posts from mock data
+  const supernovaPosts = useMemo(() => {
+    return mockPosts.filter(post => supernovaedPosts.includes(post.id));
+  }, [supernovaedPosts]);
+
+  // Get saved posts from mock data
+  const savedPostsList = useMemo(() => {
+    return mockPosts.filter(post => savedPosts.includes(post.id));
+  }, [savedPosts]);
 
   // Animated gradient rotation
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -208,17 +223,41 @@ export default function ProfileScreen() {
 
         {/* Tabs */}
         <View style={styles.tabs}>
-          <Pressable style={[styles.tab, styles.tabActive]} accessibilityLabel="Posts grid">
-            <Grid size={22} color="#1F2937" />
+          <Pressable
+            style={[styles.tab, activeTab === 'posts' && styles.tabActive]}
+            accessibilityLabel="Posts grid"
+            onPress={() => setActiveTab('posts')}
+          >
+            <Grid size={22} color={activeTab === 'posts' ? '#1F2937' : '#9CA3AF'} />
           </Pressable>
-          <Pressable style={styles.tab} accessibilityLabel="Saved posts">
-            <Bookmark size={22} color="#9CA3AF" />
+          <Pressable
+            style={[styles.tab, activeTab === 'saved' && styles.tabActive]}
+            accessibilityLabel="Saved posts"
+            onPress={() => setActiveTab('saved')}
+          >
+            <Bookmark size={22} color={activeTab === 'saved' ? '#1F2937' : '#9CA3AF'} />
+          </Pressable>
+          <Pressable
+            style={[styles.tab, activeTab === 'supernovas' && styles.tabActive]}
+            accessibilityLabel="Supernovas"
+            onPress={() => setActiveTab('supernovas')}
+          >
+            <Star
+              size={22}
+              color={activeTab === 'supernovas' ? '#EC4899' : '#9CA3AF'}
+              fill={activeTab === 'supernovas' ? '#EC4899' : 'transparent'}
+            />
+            {supernovaedPosts.length > 0 && (
+              <View style={styles.tabBadge}>
+                <Text style={styles.tabBadgeText}>{supernovaedPosts.length}</Text>
+              </View>
+            )}
           </Pressable>
         </View>
 
         {/* Posts Grid */}
         <View style={styles.postsGrid}>
-          {mockPosts.slice(0, 9).map((post, index) => (
+          {activeTab === 'posts' && mockPosts.slice(0, 9).map((post, index) => (
             <MotiView
               key={post.id}
               from={{ opacity: 0, scale: 0.9 }}
@@ -235,6 +274,70 @@ export default function ProfileScreen() {
               </Pressable>
             </MotiView>
           ))}
+
+          {activeTab === 'saved' && (
+            savedPostsList.length > 0 ? (
+              savedPostsList.map((post, index) => (
+                <MotiView
+                  key={post.id}
+                  from={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: 'timing', duration: 200, delay: index * 50 }}
+                >
+                  <Pressable style={({ pressed }) => [styles.postItem, pressed && { opacity: 0.8 }]}>
+                    <Image
+                      source={{ uri: post.mediaUrl }}
+                      width={GRID_SIZE}
+                      height={GRID_SIZE}
+                      borderRadius={2}
+                    />
+                  </Pressable>
+                </MotiView>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Bookmark size={48} color="#D1D5DB" />
+                <Text style={styles.emptyStateText}>No saved posts yet</Text>
+                <Text style={styles.emptyStateSubtext}>
+                  Save posts to find them easily later
+                </Text>
+              </View>
+            )
+          )}
+
+          {activeTab === 'supernovas' && (
+            supernovaPosts.length > 0 ? (
+              supernovaPosts.map((post, index) => (
+                <MotiView
+                  key={post.id}
+                  from={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: 'timing', duration: 200, delay: index * 50 }}
+                >
+                  <Pressable style={({ pressed }) => [styles.postItem, pressed && { opacity: 0.8 }]}>
+                    <Image
+                      source={{ uri: post.mediaUrl }}
+                      width={GRID_SIZE}
+                      height={GRID_SIZE}
+                      borderRadius={2}
+                    />
+                    {/* Supernova badge overlay */}
+                    <View style={styles.supernovaBadge}>
+                      <Star size={12} color="white" fill="white" />
+                    </View>
+                  </Pressable>
+                </MotiView>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Star size={48} color="#FBCFE8" fill="#FBCFE8" />
+                <Text style={styles.emptyStateText}>No Supernovas yet</Text>
+                <Text style={styles.emptyStateSubtext}>
+                  Give a Supernova to posts you love!{'\n'}It costs 100 karma and supports their cause.
+                </Text>
+              </View>
+            )
+          )}
         </View>
 
         {/* Logout Button */}
@@ -490,19 +593,68 @@ const styles = StyleSheet.create({
     paddingVertical: spacing['3'],
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
   tabActive: {
     borderBottomWidth: 2,
     borderBottomColor: '#1F2937',
     marginBottom: -1,
   },
+  tabBadge: {
+    position: 'absolute',
+    top: 8,
+    right: '25%',
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#EC4899',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  tabBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: 'white',
+  },
   postsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: GRID_GAP,
+    minHeight: 200,
   },
   postItem: {
-    // Size set inline
+    position: 'relative',
+  },
+  supernovaBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#EC4899',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyState: {
+    flex: 1,
+    width: SCREEN_WIDTH - spacing['4'] * 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing['8'],
+    gap: spacing['3'],
+  },
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   logoutSection: {
     marginTop: spacing['8'],

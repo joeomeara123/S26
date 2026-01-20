@@ -28,15 +28,20 @@ interface AuthState {
   logout: () => void;
   completeOnboarding: () => void;
   updateUser: (updates: Partial<User>) => void;
+
+  // Karma actions
+  getKarma: () => number;
+  deductKarma: (amount: number) => boolean;
+  addKarma: (amount: number) => void;
 }
 
-// Mock user data for demo
+// Mock user data for demo - start with 500 karma for testing
 const createMockUser = (email: string, name: string): User => ({
   id: `user_${Date.now()}`,
   email,
   name,
   username: name.toLowerCase().replace(/\s+/g, '_'),
-  karma: 0,
+  karma: 500,
   avatar: undefined,
 });
 
@@ -141,6 +146,33 @@ export const useAuthStore = create<AuthState>()(
         const { user } = get();
         if (user) {
           set({ user: { ...user, ...updates } });
+        }
+      },
+
+      // Get current karma
+      getKarma: () => {
+        const { user } = get();
+        return user?.karma ?? 0;
+      },
+
+      // Deduct karma - returns true if successful, false if insufficient
+      deductKarma: (amount: number) => {
+        const { user } = get();
+        if (!user) return false;
+
+        if (user.karma < amount) {
+          return false;
+        }
+
+        set({ user: { ...user, karma: user.karma - amount } });
+        return true;
+      },
+
+      // Add karma
+      addKarma: (amount: number) => {
+        const { user } = get();
+        if (user) {
+          set({ user: { ...user, karma: user.karma + amount } });
         }
       },
     }),

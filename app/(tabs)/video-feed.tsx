@@ -56,24 +56,38 @@ export default function VideoFeedScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      {/* Video Placeholder */}
+      {/* Video Preview - Static thumbnail */}
       <View style={styles.videoContainer}>
-        <View style={styles.darkBackground} />
+        {/* Dark gradient background simulating video */}
+        <LinearGradient
+          colors={['#0a0a1a', '#1a1a2e', '#16213e']}
+          style={StyleSheet.absoluteFill}
+        />
 
-        {/* Coming Soon Message */}
+        {/* Video thumbnail overlay - using post images */}
+        <View style={styles.thumbnailContainer}>
+          <MotiView
+            from={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ type: 'timing', duration: 500 }}
+            style={styles.thumbnailOverlay}
+          >
+            {/* Play indicator */}
+            <View style={styles.playIndicator}>
+              <View style={styles.playIcon} />
+            </View>
+          </MotiView>
+        </View>
+
+        {/* Swipe hint - subtle */}
         <MotiView
-          from={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: 'spring', damping: 15 }}
-          style={styles.comingSoonContainer}
+          from={{ opacity: 0, translateY: 10 }}
+          animate={{ opacity: [0, 0.6, 0], translateY: [10, 0, -10] }}
+          transition={{ type: 'timing', duration: 2000, loop: true, delay: 1000 }}
+          style={styles.swipeHintContainer}
         >
-          <View style={styles.iconBadge}>
-            <Text style={styles.iconEmoji}>🎬</Text>
-          </View>
-          <Text style={styles.comingSoonTitle}>Video Feed</Text>
-          <Text style={styles.comingSoonSubtitle}>
-            Full TikTok-style video experience{'\n'}coming in Week 5
-          </Text>
+          <View style={styles.swipeHintLine} />
+          <Text style={styles.swipeHintText}>Swipe up for more</Text>
         </MotiView>
       </View>
 
@@ -213,38 +227,54 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  darkBackground: {
+  thumbnailContainer: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#0a0a1a',
-  },
-  comingSoonContainer: {
-    alignItems: 'center',
-    gap: spacing['4'],
-  },
-  iconBadge: {
-    width: 88,
-    height: 88,
-    borderRadius: 24,
-    backgroundColor: '#1F2937',
-    alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing['4'],
+    alignItems: 'center',
   },
-  iconEmoji: {
-    fontSize: 40,
+  thumbnailOverlay: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  comingSoonTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: 'white',
-    textAlign: 'center',
-    letterSpacing: -0.5,
+  playIndicator: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
-  comingSoonSubtitle: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.6)',
-    textAlign: 'center',
-    lineHeight: 24,
+  playIcon: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 22,
+    borderTopWidth: 14,
+    borderBottomWidth: 14,
+    borderLeftColor: 'rgba(255,255,255,0.9)',
+    borderTopColor: 'transparent',
+    borderBottomColor: 'transparent',
+    marginLeft: 6,
+  },
+  swipeHintContainer: {
+    position: 'absolute',
+    bottom: 180,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    gap: 8,
+  },
+  swipeHintLine: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+  },
+  swipeHintText: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.5)',
+    fontWeight: '500',
   },
   bottomGradient: {
     position: 'absolute',
