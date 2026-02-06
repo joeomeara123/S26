@@ -6,31 +6,33 @@ import {
   TextInput,
   View,
   Pressable,
-  Animated,
-  Easing,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MotiView } from '../../components/MotiWrapper';
 import { Text, Spinner } from 'tamagui';
 import * as Haptics from 'expo-haptics';
 import { ChevronLeft, Eye, EyeOff } from '@tamagui/lucide-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withDelay,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { useAuthStore } from '../../store/authStore';
+import { colors } from '../../constants/colors';
 import { spacing } from '../../constants/spacing';
+import { AnimatedGradient } from '../../components/ui/AnimatedGradient';
+import { GrainOverlay } from '../../components/ui/GrainOverlay';
+import { GlassCard } from '../../components/ui/GlassCard';
 
-/**
- * Login Screen - Production Quality Design
- *
- * Design principles:
- * - Clean, minimal, native iOS feel
- * - Subtle animated gradient background
- * - White inputs with thin borders
- * - Solid dark button
- * - Real SVG logos
- */
+const SPRING_CONFIG = { stiffness: 120, damping: 14 };
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -40,27 +42,60 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
 
   const passwordRef = useRef<TextInput>(null);
 
-  // Animated gradient rotation
-  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const titleOpacity = useSharedValue(0);
+  const titleTranslateY = useSharedValue(12);
+  const cardOpacity = useSharedValue(0);
+  const cardTranslateY = useSharedValue(20);
+  const socialOpacity = useSharedValue(0);
+  const signInScale = useSharedValue(1);
+  const errorOpacity = useSharedValue(0);
+  const errorScale = useSharedValue(0.95);
 
   useEffect(() => {
-    Animated.loop(
-      Animated.timing(rotateAnim, {
-        toValue: 1,
-        duration: 20000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    ).start();
-  }, [rotateAnim]);
+    titleOpacity.value = withDelay(100, withSpring(1, SPRING_CONFIG));
+    titleTranslateY.value = withDelay(100, withSpring(0, SPRING_CONFIG));
+    cardOpacity.value = withDelay(200, withSpring(1, SPRING_CONFIG));
+    cardTranslateY.value = withDelay(200, withSpring(0, SPRING_CONFIG));
+    socialOpacity.value = withDelay(400, withTiming(1, { duration: 400 }));
+  }, []);
 
-  const rotation = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
+  useEffect(() => {
+    if (error) {
+      errorOpacity.value = withSpring(1, SPRING_CONFIG);
+      errorScale.value = withSpring(1, SPRING_CONFIG);
+    } else {
+      errorOpacity.value = 0;
+      errorScale.value = 0.95;
+    }
+  }, [error]);
+
+  const titleStyle = useAnimatedStyle(() => ({
+    opacity: titleOpacity.value,
+    transform: [{ translateY: titleTranslateY.value }],
+  }));
+
+  const cardStyle = useAnimatedStyle(() => ({
+    opacity: cardOpacity.value,
+    transform: [{ translateY: cardTranslateY.value }],
+  }));
+
+  const socialStyle = useAnimatedStyle(() => ({
+    opacity: socialOpacity.value,
+  }));
+
+  const signInButtonStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: signInScale.value }],
+  }));
+
+  const errorStyle = useAnimatedStyle(() => ({
+    opacity: errorOpacity.value,
+    transform: [{ scale: errorScale.value }],
+  }));
 
   const handleLogin = useCallback(async () => {
     setError('');
@@ -86,6 +121,15 @@ export default function LoginScreen() {
     router.back();
   }, [router]);
 
+  const handleSignInPressIn = useCallback(() => {
+    signInScale.value = withSpring(0.98, SPRING_CONFIG);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }, []);
+
+  const handleSignInPressOut = useCallback(() => {
+    signInScale.value = withSpring(1, SPRING_CONFIG);
+  }, []);
+
   const isValid = email.length > 0 && password.length > 0;
 
   return (
@@ -93,208 +137,193 @@ export default function LoginScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      {/* Subtle animated gradient background */}
-      <View style={styles.backgroundContainer}>
-        <Animated.View
-          style={[
-            styles.gradientOrb,
-            { transform: [{ rotate: rotation }] }
-          ]}
-        >
-          <LinearGradient
-            colors={['#E0F2FE', '#FEF3C7', '#FCE7F3', '#E0E7FF']}
-            style={styles.orbGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          />
-        </Animated.View>
+      <View style={StyleSheet.absoluteFill}>
+        <AnimatedGradient />
       </View>
+      <GrainOverlay />
 
-      {/* Base background */}
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: '#FAFAFA' }]} />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        bounces={false}
+      >
+        <View style={[styles.content, { paddingTop: insets.top + spacing['2'] }]}>
+          <View style={styles.header}>
+            <Pressable
+              onPress={handleBack}
+              style={({ pressed }) => [
+                styles.backButton,
+                pressed && styles.backButtonPressed,
+              ]}
+              accessibilityLabel="Go back"
+              accessibilityRole="button"
+            >
+              <ChevronLeft size={24} color="#FAFAFA" />
+            </Pressable>
+          </View>
 
-      {/* Gradient overlay */}
-      <LinearGradient
-        colors={['rgba(250,250,250,0)', 'rgba(250,250,250,0.8)', 'rgba(250,250,250,1)']}
-        locations={[0, 0.5, 0.8]}
-        style={StyleSheet.absoluteFill}
-      />
-
-      <View style={[styles.content, { paddingTop: insets.top + spacing['2'] }]}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Pressable
-            onPress={handleBack}
-            style={({ pressed }) => [
-              styles.backButton,
-              pressed && styles.backButtonPressed,
-            ]}
-            accessibilityLabel="Go back"
-            accessibilityRole="button"
-          >
-            <ChevronLeft size={24} color="#1F2937" />
-          </Pressable>
-        </View>
-
-        {/* Content */}
-        <MotiView
-          from={{ opacity: 0, translateY: 20 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: 400 }}
-          style={styles.formContent}
-        >
-          {/* Title Section */}
-          <View style={styles.titleSection}>
+          <Animated.View style={[styles.titleSection, titleStyle]}>
             <Text style={styles.title}>Welcome back</Text>
             <Text style={styles.subtitle}>Sign in to continue</Text>
-          </View>
+          </Animated.View>
 
-          {/* Form */}
-          <View style={styles.form}>
-            {/* Email Input */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Email</Text>
-              <View style={styles.inputWrapper}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="your@email.com"
-                  placeholderTextColor="#9CA3AF"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  returnKeyType="next"
-                  onSubmitEditing={() => passwordRef.current?.focus()}
-                  accessibilityLabel="Email address"
-                />
-              </View>
-            </View>
+          <Animated.View style={cardStyle}>
+            <GlassCard style={styles.glassCard}>
+              <View style={styles.form}>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Email</Text>
+                  <View
+                    style={[
+                      styles.inputWrapper,
+                      emailFocused && styles.inputWrapperFocused,
+                    ]}
+                  >
+                    <TextInput
+                      style={styles.input}
+                      placeholder="your@email.com"
+                      placeholderTextColor={colors.auth.textTertiary}
+                      value={email}
+                      onChangeText={setEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoComplete="email"
+                      returnKeyType="next"
+                      onSubmitEditing={() => passwordRef.current?.focus()}
+                      onFocus={() => setEmailFocused(true)}
+                      onBlur={() => setEmailFocused(false)}
+                      accessibilityLabel="Email address"
+                    />
+                  </View>
+                </View>
 
-            {/* Password Input */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Password</Text>
-              <View style={styles.inputWrapper}>
-                <TextInput
-                  ref={passwordRef}
-                  style={styles.input}
-                  placeholder="Enter your password"
-                  placeholderTextColor="#9CA3AF"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  returnKeyType="done"
-                  onSubmitEditing={handleLogin}
-                  accessibilityLabel="Password"
-                />
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Password</Text>
+                  <View
+                    style={[
+                      styles.inputWrapper,
+                      passwordFocused && styles.inputWrapperFocused,
+                    ]}
+                  >
+                    <TextInput
+                      ref={passwordRef}
+                      style={styles.input}
+                      placeholder="Enter your password"
+                      placeholderTextColor={colors.auth.textTertiary}
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry={!showPassword}
+                      autoCapitalize="none"
+                      returnKeyType="done"
+                      onSubmitEditing={handleLogin}
+                      onFocus={() => setPasswordFocused(true)}
+                      onBlur={() => setPasswordFocused(false)}
+                      accessibilityLabel="Password"
+                    />
+                    <Pressable
+                      onPress={() => setShowPassword(!showPassword)}
+                      style={styles.eyeButton}
+                      accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? (
+                        <EyeOff size={20} color={colors.auth.textSecondary} />
+                      ) : (
+                        <Eye size={20} color={colors.auth.textSecondary} />
+                      )}
+                    </Pressable>
+                  </View>
+                </View>
+
                 <Pressable
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeButton}
-                  accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                  onPress={() => router.push('/(auth)/forgot-password')}
+                  style={styles.forgotButton}
+                  accessibilityLabel="Forgot password"
                 >
-                  {showPassword ? (
-                    <EyeOff size={20} color="#6B7280" />
-                  ) : (
-                    <Eye size={20} color="#6B7280" />
-                  )}
+                  <Text style={styles.forgotText}>Forgot password?</Text>
                 </Pressable>
+
+                {error ? (
+                  <Animated.View style={[styles.errorContainer, errorStyle]}>
+                    <Text style={styles.errorText}>{error}</Text>
+                  </Animated.View>
+                ) : null}
+
+                <AnimatedPressable
+                  onPress={handleLogin}
+                  onPressIn={isValid && !isLoading ? handleSignInPressIn : undefined}
+                  onPressOut={isValid && !isLoading ? handleSignInPressOut : undefined}
+                  disabled={isLoading || !isValid}
+                  style={[
+                    styles.loginButton,
+                    (!isValid || isLoading) && styles.loginButtonDisabled,
+                    signInButtonStyle,
+                  ]}
+                  accessibilityLabel="Sign in"
+                  accessibilityRole="button"
+                >
+                  {isLoading ? (
+                    <Spinner color={colors.auth.background} />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.loginButtonText,
+                        (!isValid || isLoading) && styles.loginButtonTextDisabled,
+                      ]}
+                    >
+                      Sign In
+                    </Text>
+                  )}
+                </AnimatedPressable>
               </View>
+            </GlassCard>
+          </Animated.View>
+
+          <Animated.View style={socialStyle}>
+            <View style={styles.dividerContainer}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
             </View>
 
-            {/* Forgot Password */}
-            <Pressable
-              onPress={() => router.push('/(auth)/forgot-password')}
-              style={styles.forgotButton}
-              accessibilityLabel="Forgot password"
-            >
-              <Text style={styles.forgotText}>Forgot password?</Text>
-            </Pressable>
-
-            {/* Error Message */}
-            {error && (
-              <MotiView
-                from={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                style={styles.errorContainer}
+            <View style={styles.socialContainer}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.socialButton,
+                  pressed && styles.socialButtonPressed,
+                ]}
+                accessibilityLabel="Sign in with Google"
+                accessibilityRole="button"
               >
-                <Text style={styles.errorText}>{error}</Text>
-              </MotiView>
-            )}
+                <GoogleLogo />
+                <Text style={styles.socialButtonText}>Google</Text>
+              </Pressable>
 
-            {/* Login Button */}
-            <Pressable
-              onPress={handleLogin}
-              disabled={isLoading || !isValid}
-              style={({ pressed }) => [
-                styles.loginButton,
-                (!isValid || isLoading) && styles.loginButtonDisabled,
-                pressed && isValid && !isLoading && styles.loginButtonPressed,
-              ]}
-              accessibilityLabel="Sign in"
-              accessibilityRole="button"
-            >
-              {isLoading ? (
-                <Spinner color="white" />
-              ) : (
-                <Text style={[
-                  styles.loginButtonText,
-                  !isValid && styles.loginButtonTextDisabled,
-                ]}>
-                  Sign In
-                </Text>
-              )}
-            </Pressable>
-          </View>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.socialButton,
+                  pressed && styles.socialButtonPressed,
+                ]}
+                accessibilityLabel="Sign in with Apple"
+                accessibilityRole="button"
+              >
+                <AppleLogo />
+                <Text style={styles.socialButtonText}>Apple</Text>
+              </Pressable>
+            </View>
+          </Animated.View>
+        </View>
 
-          {/* Divider */}
-          <View style={styles.dividerContainer}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* Social Login */}
-          <View style={styles.socialContainer}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.socialButton,
-                pressed && styles.socialButtonPressed,
-              ]}
-              accessibilityLabel="Sign in with Google"
-              accessibilityRole="button"
-            >
-              <GoogleLogo />
-              <Text style={styles.socialButtonText}>Google</Text>
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.socialButton,
-                pressed && styles.socialButtonPressed,
-              ]}
-              accessibilityLabel="Sign in with Apple"
-              accessibilityRole="button"
-            >
-              <AppleLogo />
-              <Text style={styles.socialButtonText}>Apple</Text>
-            </Pressable>
-          </View>
-        </MotiView>
-
-        {/* Sign Up Link */}
         <View style={[styles.signupContainer, { paddingBottom: insets.bottom + spacing['4'] }]}>
           <Text style={styles.signupText}>Don't have an account? </Text>
           <Pressable onPress={() => router.push('/(auth)/signup')}>
             <Text style={styles.signupLink}>Sign up</Text>
           </Pressable>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-// Google "G" Logo (same as welcome screen)
 function GoogleLogo() {
   return (
     <Svg width={18} height={18} viewBox="0 0 24 24">
@@ -318,13 +347,12 @@ function GoogleLogo() {
   );
 }
 
-// Apple Logo (same as welcome screen)
 function AppleLogo() {
   return (
     <Svg width={16} height={18} viewBox="0 0 17 20" fill="none">
       <Path
         d="M8.35 4.89c.9 0 2.03-.61 2.7-1.42.6-.73 1.04-1.74 1.04-2.76 0-.14-.01-.28-.04-.39-.99.04-2.18.66-2.9 1.5-.56.65-1.08 1.64-1.08 2.67 0 .15.02.3.04.35.07.01.18.05.24.05zM5.53 19.8c1.23 0 1.77-.82 3.31-.82 1.56 0 1.91.8 3.28.8 1.34 0 2.24-1.24 3.08-2.45.95-1.38 1.34-2.74 1.36-2.81-.08-.03-2.66-1.07-2.66-4 0-2.53 2-3.67 2.12-3.76-1.32-1.89-3.33-1.93-3.88-1.93-1.49 0-2.7.9-3.46.9-.81 0-1.92-.85-3.2-.85C3.11 4.88.84 7 .84 11.15c0 2.58.99 5.3 2.21 7.07 1.04 1.5 1.94 2.58 3.24 2.58h.24z"
-        fill="#000"
+        fill="#FAFAFA"
       />
     </Svg>
   );
@@ -333,23 +361,14 @@ function AppleLogo() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: colors.auth.background,
   },
-  backgroundContainer: {
-    ...StyleSheet.absoluteFillObject,
-    overflow: 'hidden',
-  },
-  gradientOrb: {
-    position: 'absolute',
-    top: -100,
-    left: -100,
-    width: 600,
-    height: 600,
-    opacity: 0.5,
-  },
-  orbGradient: {
+  scrollView: {
     flex: 1,
-    borderRadius: 300,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'space-between',
   },
   content: {
     flex: 1,
@@ -364,34 +383,34 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'white',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   backButtonPressed: {
     transform: [{ scale: 0.96 }],
-    backgroundColor: '#F9FAFB',
-  },
-  formContent: {
-    flex: 1,
-    paddingHorizontal: spacing['6'],
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
   },
   titleSection: {
     marginTop: spacing['4'],
-    marginBottom: spacing['8'],
+    marginBottom: spacing['6'],
+    paddingHorizontal: spacing['6'],
   },
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.auth.textPrimary,
     marginBottom: spacing['1'],
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6B7280',
+    color: colors.auth.textSecondary,
+  },
+  glassCard: {
+    marginHorizontal: spacing['5'],
   },
   form: {
     gap: spacing['4'],
@@ -402,22 +421,25 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#374151',
+    color: colors.auth.textSecondary,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: colors.auth.inputBackground,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.auth.inputBorder,
     paddingHorizontal: spacing['4'],
     height: 52,
+  },
+  inputWrapperFocused: {
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#1F2937',
+    color: colors.auth.textPrimary,
     height: '100%',
   },
   eyeButton: {
@@ -431,17 +453,17 @@ const styles = StyleSheet.create({
   forgotText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1F2937',
+    color: colors.auth.textSecondary,
   },
   errorContainer: {
     padding: spacing['3'],
-    backgroundColor: '#FEF2F2',
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: 'rgba(239, 68, 68, 0.3)',
   },
   errorText: {
-    color: '#DC2626',
+    color: '#FCA5A5',
     fontSize: 14,
     fontWeight: '500',
     textAlign: 'center',
@@ -449,51 +471,49 @@ const styles = StyleSheet.create({
   loginButton: {
     height: 52,
     borderRadius: 12,
-    backgroundColor: '#1F2937',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: spacing['2'],
   },
   loginButtonDisabled: {
-    backgroundColor: '#E5E7EB',
-  },
-  loginButtonPressed: {
-    transform: [{ scale: 0.99 }],
-    backgroundColor: '#374151',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   loginButtonText: {
-    color: 'white',
+    color: '#0A0A0A',
     fontSize: 16,
     fontWeight: '600',
   },
   loginButtonTextDisabled: {
-    color: '#9CA3AF',
+    color: 'rgba(255, 255, 255, 0.3)',
   },
   dividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginVertical: spacing['6'],
+    paddingHorizontal: spacing['6'],
     gap: spacing['4'],
   },
   dividerLine: {
     flex: 1,
-    height: 1,
-    backgroundColor: '#E5E7EB',
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
   },
   dividerText: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: colors.auth.textTertiary,
   },
   socialContainer: {
     flexDirection: 'row',
+    paddingHorizontal: spacing['5'],
     gap: spacing['3'],
   },
   socialButton: {
     flex: 1,
     height: 52,
-    backgroundColor: 'white',
+    backgroundColor: colors.auth.glassBackground,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.auth.glassBorder,
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -501,27 +521,28 @@ const styles = StyleSheet.create({
     gap: spacing['2'],
   },
   socialButtonPressed: {
-    transform: [{ scale: 0.99 }],
-    backgroundColor: '#F9FAFB',
+    transform: [{ scale: 0.98 }],
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
   },
   socialButtonText: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#1F2937',
+    color: colors.auth.textPrimary,
   },
   signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: spacing['6'],
+    paddingTop: spacing['6'],
   },
   signupText: {
     fontSize: 15,
-    color: '#6B7280',
+    color: colors.auth.textSecondary,
   },
   signupLink: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.auth.textPrimary,
   },
 });

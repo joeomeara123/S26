@@ -1,47 +1,96 @@
-import { useCallback, useEffect, useRef } from 'react';
-import { StyleSheet, View, Pressable, Animated, Easing } from 'react-native';
+import { useCallback, useEffect } from 'react';
+import { StyleSheet, View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MotiView } from '../../components/MotiWrapper';
 import { Text } from 'tamagui';
 import * as Haptics from 'expo-haptics';
-import Svg, { Path, G, Defs, ClipPath, Rect } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withDelay,
+  Easing,
+  interpolate,
+} from 'react-native-reanimated';
 
+import { AnimatedGradient } from '../../components/ui/AnimatedGradient';
+import { GrainOverlay } from '../../components/ui/GrainOverlay';
+import { GlassCard } from '../../components/ui/GlassCard';
+import { colors } from '../../constants/colors';
 import { spacing } from '../../constants/spacing';
 
-/**
- * Welcome Screen - Production Quality Design
- *
- * Design principles:
- * - Clean, minimal, native iOS feel
- * - Subtle animated gradient background
- * - Real brand logos (Google, Apple)
- * - White buttons with colored borders
- * - Clear hierarchy, restrained motion
- */
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+const SPRING_CONFIG = { stiffness: 120, damping: 14 };
+
 export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // Animated gradient rotation
-  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const logoProgress = useSharedValue(0);
+  const nameProgress = useSharedValue(0);
+  const taglineProgress = useSharedValue(0);
+  const btn0Progress = useSharedValue(0);
+  const btn1Progress = useSharedValue(0);
+  const btn2Progress = useSharedValue(0);
+  const dividerProgress = useSharedValue(0);
+  const loginProgress = useSharedValue(0);
+  const termsProgress = useSharedValue(0);
 
   useEffect(() => {
-    Animated.loop(
-      Animated.timing(rotateAnim, {
-        toValue: 1,
-        duration: 20000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    ).start();
-  }, [rotateAnim]);
+    logoProgress.value = withDelay(200, withSpring(1, SPRING_CONFIG));
+    nameProgress.value = withDelay(400, withSpring(1, SPRING_CONFIG));
+    taglineProgress.value = withDelay(600, withTiming(1, { duration: 400, easing: Easing.out(Easing.ease) }));
+    btn0Progress.value = withDelay(800, withSpring(1, SPRING_CONFIG));
+    btn1Progress.value = withDelay(900, withSpring(1, SPRING_CONFIG));
+    btn2Progress.value = withDelay(1000, withSpring(1, SPRING_CONFIG));
+    dividerProgress.value = withDelay(1100, withTiming(1, { duration: 300, easing: Easing.out(Easing.ease) }));
+    loginProgress.value = withDelay(1100, withTiming(1, { duration: 300, easing: Easing.out(Easing.ease) }));
+    termsProgress.value = withDelay(1200, withTiming(1, { duration: 400, easing: Easing.out(Easing.ease) }));
+  }, []);
 
-  const rotation = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
+  const logoStyle = useAnimatedStyle(() => ({
+    opacity: logoProgress.value,
+    transform: [{ scale: interpolate(logoProgress.value, [0, 1], [0.8, 1]) }],
+  }));
+
+  const nameStyle = useAnimatedStyle(() => ({
+    opacity: nameProgress.value,
+    transform: [{ translateY: interpolate(nameProgress.value, [0, 1], [-8, 0]) }],
+  }));
+
+  const taglineStyle = useAnimatedStyle(() => ({
+    opacity: taglineProgress.value,
+  }));
+
+  const btn0Style = useAnimatedStyle(() => ({
+    opacity: btn0Progress.value,
+    transform: [{ translateY: interpolate(btn0Progress.value, [0, 1], [15, 0]) }],
+  }));
+
+  const btn1Style = useAnimatedStyle(() => ({
+    opacity: btn1Progress.value,
+    transform: [{ translateY: interpolate(btn1Progress.value, [0, 1], [15, 0]) }],
+  }));
+
+  const btn2Style = useAnimatedStyle(() => ({
+    opacity: btn2Progress.value,
+    transform: [{ translateY: interpolate(btn2Progress.value, [0, 1], [15, 0]) }],
+  }));
+
+  const dividerStyle = useAnimatedStyle(() => ({
+    opacity: dividerProgress.value,
+  }));
+
+  const loginStyle = useAnimatedStyle(() => ({
+    opacity: loginProgress.value,
+  }));
+
+  const termsStyle = useAnimatedStyle(() => ({
+    opacity: termsProgress.value,
+  }));
 
   const handleGoogle = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -66,144 +115,122 @@ export default function WelcomeScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Subtle animated gradient background */}
-      <View style={styles.backgroundContainer}>
-        <Animated.View
-          style={[
-            styles.gradientOrb,
-            { transform: [{ rotate: rotation }] }
-          ]}
-        >
-          <LinearGradient
-            colors={['#E0F2FE', '#FEF3C7', '#FCE7F3', '#E0E7FF']}
-            style={styles.orbGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          />
-        </Animated.View>
-      </View>
+      <AnimatedGradient style={{ ...StyleSheet.absoluteFillObject }} />
+      <GrainOverlay />
 
-      {/* Base background */}
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: '#FAFAFA' }]} />
-
-      {/* Gradient overlay */}
-      <LinearGradient
-        colors={['rgba(250,250,250,0)', 'rgba(250,250,250,0.8)', 'rgba(250,250,250,1)']}
-        locations={[0, 0.5, 0.8]}
-        style={StyleSheet.absoluteFill}
-      />
-
-      {/* Content */}
       <View style={[styles.content, { paddingTop: insets.top + 60, paddingBottom: insets.bottom + 20 }]}>
-
-        {/* Logo & Branding */}
-        <MotiView
-          from={{ opacity: 0, translateY: -10 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: 600 }}
-          style={styles.brandingSection}
-        >
-          <View style={styles.logoContainer}>
+        <View style={styles.brandingSection}>
+          <Animated.View style={[styles.logoContainer, logoStyle]}>
+            <View style={styles.logoGlow} />
             <Text style={styles.logoIcon}>✦</Text>
-          </View>
-          <Text style={styles.appName}>Supernova</Text>
-          <Text style={styles.tagline}>Social media for good</Text>
-        </MotiView>
+          </Animated.View>
+          <Animated.View style={nameStyle}>
+            <Text style={styles.appName}>Supernova</Text>
+          </Animated.View>
+          <Animated.View style={taglineStyle}>
+            <Text style={styles.tagline}>Social media for good</Text>
+          </Animated.View>
+        </View>
 
-        {/* Spacer */}
         <View style={styles.spacer} />
 
-        {/* Auth Buttons */}
-        <MotiView
-          from={{ opacity: 0, translateY: 20 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: 500, delay: 200 }}
-          style={styles.authSection}
-        >
-          {/* Google Sign In */}
-          <Pressable
-            onPress={handleGoogle}
-            style={({ pressed }) => [
-              styles.authButton,
-              styles.authButtonOutline,
-              pressed && styles.authButtonPressed,
-            ]}
-            accessibilityLabel="Continue with Google"
-            accessibilityRole="button"
-          >
-            <GoogleLogo />
-            <Text style={styles.authButtonText}>Continue with Google</Text>
-          </Pressable>
+        <GlassCard style={styles.glassCard}>
+          <Animated.View style={btn0Style}>
+            <AuthButton
+              onPress={handleGoogle}
+              label="Continue with Google"
+              icon={<GoogleLogo />}
+            />
+          </Animated.View>
 
-          {/* Apple Sign In */}
-          <Pressable
-            onPress={handleApple}
-            style={({ pressed }) => [
-              styles.authButton,
-              styles.authButtonOutline,
-              pressed && styles.authButtonPressed,
-            ]}
-            accessibilityLabel="Continue with Apple"
-            accessibilityRole="button"
-          >
-            <AppleLogo />
-            <Text style={styles.authButtonText}>Continue with Apple</Text>
-          </Pressable>
+          <Animated.View style={btn1Style}>
+            <AuthButton
+              onPress={handleApple}
+              label="Continue with Apple"
+              icon={<AppleLogo />}
+            />
+          </Animated.View>
 
-          {/* Phone Sign In */}
-          <Pressable
-            onPress={handlePhone}
-            style={({ pressed }) => [
-              styles.authButton,
-              styles.authButtonOutline,
-              pressed && styles.authButtonPressed,
-            ]}
-            accessibilityLabel="Continue with phone"
-            accessibilityRole="button"
-          >
-            <PhoneIcon />
-            <Text style={styles.authButtonText}>Continue with phone</Text>
-          </Pressable>
+          <Animated.View style={btn2Style}>
+            <AuthButton
+              onPress={handlePhone}
+              label="Continue with phone"
+              icon={<PhoneIcon />}
+            />
+          </Animated.View>
 
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
-          </View>
+          <Animated.View style={dividerStyle}>
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+          </Animated.View>
 
-          {/* Login Link */}
-          <Pressable
-            onPress={handleLogin}
-            style={({ pressed }) => [
-              styles.loginButton,
-              pressed && { opacity: 0.7 },
-            ]}
-            accessibilityLabel="Log in to existing account"
-            accessibilityRole="button"
-          >
-            <Text style={styles.loginText}>Already have an account? <Text style={styles.loginTextBold}>Log in</Text></Text>
-          </Pressable>
-        </MotiView>
+          <Animated.View style={loginStyle}>
+            <Pressable
+              onPress={handleLogin}
+              style={({ pressed }) => [styles.loginButton, pressed && { opacity: 0.7 }]}
+              accessibilityLabel="Log in to existing account"
+              accessibilityRole="button"
+            >
+              <Text style={styles.loginText}>
+                Already have an account? <Text style={styles.loginTextBold}>Log in</Text>
+              </Text>
+            </Pressable>
+          </Animated.View>
+        </GlassCard>
 
-        {/* Terms */}
-        <MotiView
-          from={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ type: 'timing', duration: 400, delay: 400 }}
-        >
+        <Animated.View style={termsStyle}>
           <Text style={styles.terms}>
             By continuing, you agree to our{' '}
             <Text style={styles.termsLink}>Terms</Text> and{' '}
             <Text style={styles.termsLink}>Privacy Policy</Text>
           </Text>
-        </MotiView>
+        </Animated.View>
       </View>
     </View>
   );
 }
 
-// Google "G" Logo
+function AuthButton({
+  onPress,
+  label,
+  icon,
+}: {
+  onPress: () => void;
+  label: string;
+  icon: React.ReactNode;
+}) {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = useCallback(() => {
+    scale.value = withSpring(0.97, SPRING_CONFIG);
+  }, []);
+
+  const handlePressOut = useCallback(() => {
+    scale.value = withSpring(1, SPRING_CONFIG);
+  }, []);
+
+  return (
+    <AnimatedPressable
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={[styles.authButton, animatedStyle]}
+      accessibilityLabel={label}
+      accessibilityRole="button"
+    >
+      {icon}
+      <Text style={styles.authButtonText}>{label}</Text>
+    </AnimatedPressable>
+  );
+}
+
 function GoogleLogo() {
   return (
     <Svg width={20} height={20} viewBox="0 0 24 24">
@@ -227,22 +254,20 @@ function GoogleLogo() {
   );
 }
 
-// Apple Logo
 function AppleLogo() {
   return (
     <Svg width={18} height={20} viewBox="0 0 17 20" fill="none">
       <Path
         d="M8.35 4.89c.9 0 2.03-.61 2.7-1.42.6-.73 1.04-1.74 1.04-2.76 0-.14-.01-.28-.04-.39-.99.04-2.18.66-2.9 1.5-.56.65-1.08 1.64-1.08 2.67 0 .15.02.3.04.35.07.01.18.05.24.05zM5.53 19.8c1.23 0 1.77-.82 3.31-.82 1.56 0 1.91.8 3.28.8 1.34 0 2.24-1.24 3.08-2.45.95-1.38 1.34-2.74 1.36-2.81-.08-.03-2.66-1.07-2.66-4 0-2.53 2-3.67 2.12-3.76-1.32-1.89-3.33-1.93-3.88-1.93-1.49 0-2.7.9-3.46.9-.81 0-1.92-.85-3.2-.85C3.11 4.88.84 7 .84 11.15c0 2.58.99 5.3 2.21 7.07 1.04 1.5 1.94 2.58 3.24 2.58h.24z"
-        fill="#000"
+        fill="#FFFFFF"
       />
     </Svg>
   );
 }
 
-// Phone Icon (simple)
 function PhoneIcon() {
   return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
       <Path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
     </Svg>
   );
@@ -251,23 +276,7 @@ function PhoneIcon() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
-  },
-  backgroundContainer: {
-    ...StyleSheet.absoluteFillObject,
-    overflow: 'hidden',
-  },
-  gradientOrb: {
-    position: 'absolute',
-    top: -100,
-    left: -100,
-    width: 600,
-    height: 600,
-    opacity: 0.5,
-  },
-  orbGradient: {
-    flex: 1,
-    borderRadius: 300,
+    backgroundColor: colors.auth.background,
   },
   content: {
     flex: 1,
@@ -277,72 +286,80 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
-    backgroundColor: '#1F2937',
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing['4'],
+    overflow: 'visible',
+  },
+  logoGlow: {
+    position: 'absolute',
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
   },
   logoIcon: {
-    fontSize: 28,
-    color: 'white',
+    fontSize: 30,
+    color: '#FAFAFA',
   },
   appName: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.auth.textPrimary,
     letterSpacing: -0.5,
     marginBottom: spacing['1'],
+    textShadowColor: 'rgba(255, 255, 255, 0.15)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 12,
   },
   tagline: {
     fontSize: 16,
-    color: '#6B7280',
+    color: colors.auth.textSecondary,
     fontWeight: '400',
   },
   spacer: {
     flex: 1,
   },
-  authSection: {
-    gap: spacing['3'],
+  glassCard: {
+    marginBottom: spacing['4'],
   },
   authButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     height: 52,
-    borderRadius: 12,
-    gap: spacing['3'],
-  },
-  authButtonOutline: {
-    backgroundColor: 'white',
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  authButtonPressed: {
-    backgroundColor: '#F9FAFB',
-    transform: [{ scale: 0.99 }],
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    gap: spacing['3'],
+    marginBottom: spacing['3'],
   },
   authButtonText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#1F2937',
+    color: colors.auth.textPrimary,
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing['4'],
-    marginVertical: spacing['2'],
+    marginVertical: spacing['1'],
   },
   dividerLine: {
     flex: 1,
-    height: 1,
-    backgroundColor: '#E5E7EB',
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
   },
   dividerText: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: colors.auth.textTertiary,
     fontWeight: '400',
   },
   loginButton: {
@@ -351,21 +368,21 @@ const styles = StyleSheet.create({
   },
   loginText: {
     fontSize: 15,
-    color: '#6B7280',
+    color: colors.auth.textSecondary,
   },
   loginTextBold: {
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.auth.textPrimary,
   },
   terms: {
     fontSize: 13,
-    color: '#9CA3AF',
+    color: colors.auth.textTertiary,
     textAlign: 'center',
     lineHeight: 18,
-    marginTop: spacing['4'],
+    marginTop: spacing['2'],
   },
   termsLink: {
-    color: '#6B7280',
+    color: colors.auth.textSecondary,
     fontWeight: '500',
   },
 });

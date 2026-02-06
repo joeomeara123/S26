@@ -80,6 +80,29 @@ export const colors = {
     supernova: ['#EC4899', '#F472B6'],
     sunset: ['#F97316', '#EC4899'],
     ocean: ['#06B6D4', '#3B82F6'],
+    spectrum: [
+      '#D946A8', // pink (muted)
+      '#DC4E5A', // red (warm)
+      '#E87B35', // orange
+      '#D4A843', // yellow (golden)
+      '#3DA87A', // green (muted)
+      '#4A7BD4', // blue
+      '#8B5DC8', // violet
+    ],
+  },
+
+  // Auth screen tokens (dark aura aesthetic)
+  auth: {
+    background: '#0A0A0A',
+    grainOpacity: 0.15,
+    glassBackground: 'rgba(255, 255, 255, 0.08)',
+    glassBorder: 'rgba(255, 255, 255, 0.12)',
+    glassBlur: 40,
+    textPrimary: '#FAFAFA',
+    textSecondary: 'rgba(255, 255, 255, 0.6)',
+    textTertiary: 'rgba(255, 255, 255, 0.35)',
+    inputBackground: 'rgba(255, 255, 255, 0.06)',
+    inputBorder: 'rgba(255, 255, 255, 0.1)',
   },
 } as const;
 
