@@ -1,4 +1,5 @@
-import { Image, StyleSheet, View, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type ViewStyle } from 'react-native';
+import { Image } from 'expo-image';
 import { colors } from '../../constants/colors';
 
 const grainTexture = require('../../assets/textures/grain.png');
@@ -17,7 +18,7 @@ export function GrainOverlay({
       <Image
         source={grainTexture}
         style={styles.grain}
-        resizeMode="repeat"
+        contentFit="cover"
       />
     </View>
   );

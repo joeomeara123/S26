@@ -93,8 +93,8 @@ export const colors = {
 
   // Auth screen tokens (dark aura aesthetic)
   auth: {
-    background: '#0A0A0A',
-    grainOpacity: 0.15,
+    background: '#0D0D0D',
+    grainOpacity: 0.5,
     glassBackground: 'rgba(255, 255, 255, 0.08)',
     glassBorder: 'rgba(255, 255, 255, 0.12)',
     glassBlur: 40,

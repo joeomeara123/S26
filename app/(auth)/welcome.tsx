@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import { StyleSheet, View, Pressable } from 'react-native';
+import { Dimensions, StyleSheet, View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from 'tamagui';
@@ -13,25 +13,33 @@ import Animated, {
   withDelay,
   Easing,
   interpolate,
+  cancelAnimation,
 } from 'react-native-reanimated';
 
 import { AnimatedGradient } from '../../components/ui/AnimatedGradient';
 import { GrainOverlay } from '../../components/ui/GrainOverlay';
-import { GlassCard } from '../../components/ui/GlassCard';
+import { LetterReveal } from '../../components/ui/LetterReveal';
 import { colors } from '../../constants/colors';
 import { spacing } from '../../constants/spacing';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
 const SPRING_CONFIG = { stiffness: 120, damping: 14 };
+const SMOOTH_SPRING = { stiffness: 80, damping: 18 };
 
 export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const logoProgress = useSharedValue(0);
-  const nameProgress = useSharedValue(0);
-  const taglineProgress = useSharedValue(0);
+  // Phase 1: Splash (cinematic logo reveal)
+  const whiteOverlay = useSharedValue(1);       // 1 = white, 0 = transparent
+  const logoProgress = useSharedValue(0);        // logo icon appear
+  const taglineProgress = useSharedValue(0);     // "Social media for good"
+
+  // Phase 2: Transition (logo moves up, auth slides in)
+  const transitionProgress = useSharedValue(0);  // 0 = centered splash, 1 = top position
   const btn0Progress = useSharedValue(0);
   const btn1Progress = useSharedValue(0);
   const btn2Progress = useSharedValue(0);
@@ -39,45 +47,106 @@ export default function WelcomeScreen() {
   const loginProgress = useSharedValue(0);
   const termsProgress = useSharedValue(0);
 
+  // Calculate how far to move branding up during transition
+  // In splash: branding is centered vertically
+  // In final: branding is at top with paddingTop
+  const brandingTargetY = -(SCREEN_HEIGHT * 0.18);
+
   useEffect(() => {
+    // Phase 1: Splash
+    // White overlay fades out revealing the gradient
+    whiteOverlay.value = withDelay(
+      100,
+      withTiming(0, { duration: 800, easing: Easing.out(Easing.ease) }),
+    );
+    // Logo scales in
     logoProgress.value = withDelay(200, withSpring(1, SPRING_CONFIG));
-    nameProgress.value = withDelay(400, withSpring(1, SPRING_CONFIG));
-    taglineProgress.value = withDelay(600, withTiming(1, { duration: 400, easing: Easing.out(Easing.ease) }));
-    btn0Progress.value = withDelay(800, withSpring(1, SPRING_CONFIG));
-    btn1Progress.value = withDelay(900, withSpring(1, SPRING_CONFIG));
-    btn2Progress.value = withDelay(1000, withSpring(1, SPRING_CONFIG));
-    dividerProgress.value = withDelay(1100, withTiming(1, { duration: 300, easing: Easing.out(Easing.ease) }));
-    loginProgress.value = withDelay(1100, withTiming(1, { duration: 300, easing: Easing.out(Easing.ease) }));
-    termsProgress.value = withDelay(1200, withTiming(1, { duration: 400, easing: Easing.out(Easing.ease) }));
+    // LetterReveal handles its own timing (startDelay=500)
+    // Tagline fades in after letters
+    taglineProgress.value = withDelay(
+      1500,
+      withTiming(1, { duration: 400, easing: Easing.out(Easing.ease) }),
+    );
+
+    // Phase 2: Transition — logo group scales down + moves up
+    transitionProgress.value = withDelay(
+      2200,
+      withSpring(1, SMOOTH_SPRING),
+    );
+    // Auth buttons stagger in
+    btn0Progress.value = withDelay(2700, withSpring(1, SPRING_CONFIG));
+    btn1Progress.value = withDelay(2800, withSpring(1, SPRING_CONFIG));
+    btn2Progress.value = withDelay(2900, withSpring(1, SPRING_CONFIG));
+    dividerProgress.value = withDelay(
+      3000,
+      withTiming(1, { duration: 300, easing: Easing.out(Easing.ease) }),
+    );
+    loginProgress.value = withDelay(
+      3000,
+      withTiming(1, { duration: 300, easing: Easing.out(Easing.ease) }),
+    );
+    termsProgress.value = withDelay(
+      3100,
+      withTiming(1, { duration: 400, easing: Easing.out(Easing.ease) }),
+    );
+
+    return () => {
+      cancelAnimation(whiteOverlay);
+      cancelAnimation(logoProgress);
+      cancelAnimation(taglineProgress);
+      cancelAnimation(transitionProgress);
+      cancelAnimation(btn0Progress);
+      cancelAnimation(btn1Progress);
+      cancelAnimation(btn2Progress);
+      cancelAnimation(dividerProgress);
+      cancelAnimation(loginProgress);
+      cancelAnimation(termsProgress);
+    };
   }, []);
+
+  // White overlay (fades from white to transparent)
+  const whiteOverlayStyle = useAnimatedStyle(() => ({
+    opacity: whiteOverlay.value,
+  }));
+
+  // Branding group: starts centered, moves up + scales down
+  const brandingStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: interpolate(transitionProgress.value, [0, 1], [0, brandingTargetY]) },
+      { scale: interpolate(transitionProgress.value, [0, 1], [1, 0.85]) },
+    ],
+  }));
 
   const logoStyle = useAnimatedStyle(() => ({
     opacity: logoProgress.value,
     transform: [{ scale: interpolate(logoProgress.value, [0, 1], [0.8, 1]) }],
   }));
 
-  const nameStyle = useAnimatedStyle(() => ({
-    opacity: nameProgress.value,
-    transform: [{ translateY: interpolate(nameProgress.value, [0, 1], [-8, 0]) }],
-  }));
-
   const taglineStyle = useAnimatedStyle(() => ({
     opacity: taglineProgress.value,
   }));
 
+  // Auth section slides up from below
+  const authSectionStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(transitionProgress.value, [0, 0.3, 1], [0, 0, 1]),
+    transform: [
+      { translateY: interpolate(transitionProgress.value, [0, 1], [60, 0]) },
+    ],
+  }));
+
   const btn0Style = useAnimatedStyle(() => ({
     opacity: btn0Progress.value,
-    transform: [{ translateY: interpolate(btn0Progress.value, [0, 1], [15, 0]) }],
+    transform: [{ translateY: interpolate(btn0Progress.value, [0, 1], [20, 0]) }],
   }));
 
   const btn1Style = useAnimatedStyle(() => ({
     opacity: btn1Progress.value,
-    transform: [{ translateY: interpolate(btn1Progress.value, [0, 1], [15, 0]) }],
+    transform: [{ translateY: interpolate(btn1Progress.value, [0, 1], [20, 0]) }],
   }));
 
   const btn2Style = useAnimatedStyle(() => ({
     opacity: btn2Progress.value,
-    transform: [{ translateY: interpolate(btn2Progress.value, [0, 1], [15, 0]) }],
+    transform: [{ translateY: interpolate(btn2Progress.value, [0, 1], [20, 0]) }],
   }));
 
   const dividerStyle = useAnimatedStyle(() => ({
@@ -118,23 +187,30 @@ export default function WelcomeScreen() {
       <AnimatedGradient style={{ ...StyleSheet.absoluteFillObject }} />
       <GrainOverlay />
 
-      <View style={[styles.content, { paddingTop: insets.top + 60, paddingBottom: insets.bottom + 20 }]}>
-        <View style={styles.brandingSection}>
-          <Animated.View style={[styles.logoContainer, logoStyle]}>
-            <View style={styles.logoGlow} />
-            <Text style={styles.logoIcon}>✦</Text>
-          </Animated.View>
-          <Animated.View style={nameStyle}>
-            <Text style={styles.appName}>Supernova</Text>
-          </Animated.View>
-          <Animated.View style={taglineStyle}>
-            <Text style={styles.tagline}>Social media for good</Text>
+      {/* Content layer */}
+      <View style={[styles.content, { paddingBottom: insets.bottom + 20 }]}>
+        {/* Branding — starts vertically centered, transitions to top */}
+        <View style={styles.brandingWrapper}>
+          <Animated.View style={[styles.brandingSection, brandingStyle]}>
+            <Animated.View style={[styles.logoContainer, logoStyle]}>
+              <View style={styles.logoGlow} />
+              <Text style={styles.logoIcon}>✦</Text>
+            </Animated.View>
+            <LetterReveal
+              text="Supernova"
+              style={styles.appName}
+              startDelay={500}
+              letterDelay={70}
+              letterDuration={350}
+            />
+            <Animated.View style={taglineStyle}>
+              <Text style={styles.tagline}>Social media for good</Text>
+            </Animated.View>
           </Animated.View>
         </View>
 
-        <View style={styles.spacer} />
-
-        <GlassCard style={styles.glassCard}>
+        {/* Auth section — fades/slides in after transition */}
+        <Animated.View style={[styles.authSection, authSectionStyle]}>
           <Animated.View style={btn0Style}>
             <AuthButton
               onPress={handleGoogle}
@@ -179,7 +255,7 @@ export default function WelcomeScreen() {
               </Text>
             </Pressable>
           </Animated.View>
-        </GlassCard>
+        </Animated.View>
 
         <Animated.View style={termsStyle}>
           <Text style={styles.terms}>
@@ -189,6 +265,9 @@ export default function WelcomeScreen() {
           </Text>
         </Animated.View>
       </View>
+
+      {/* White overlay — starts opaque, fades to reveal gradient */}
+      <Animated.View style={[styles.whiteOverlay, whiteOverlayStyle]} pointerEvents="none" />
     </View>
   );
 }
@@ -278,9 +357,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.auth.background,
   },
+  whiteOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#FFFFFF',
+  },
   content: {
     flex: 1,
     paddingHorizontal: spacing['6'],
+  },
+  brandingWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   brandingSection: {
     alignItems: 'center',
@@ -323,10 +411,8 @@ const styles = StyleSheet.create({
     color: colors.auth.textSecondary,
     fontWeight: '400',
   },
-  spacer: {
-    flex: 1,
-  },
-  glassCard: {
+  authSection: {
+    paddingHorizontal: spacing['2'],
     marginBottom: spacing['4'],
   },
   authButton: {
