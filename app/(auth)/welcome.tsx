@@ -188,7 +188,7 @@ export default function WelcomeScreen() {
       <GrainOverlay />
 
       {/* Content layer */}
-      <View style={[styles.content, { paddingBottom: insets.bottom + 20 }]}>
+      <View style={styles.content}>
         {/* Branding — starts vertically centered, transitions to top */}
         <View style={styles.brandingWrapper}>
           <Animated.View style={[styles.brandingSection, brandingStyle]}>
@@ -209,8 +209,8 @@ export default function WelcomeScreen() {
           </Animated.View>
         </View>
 
-        {/* Auth section — fades/slides in after transition */}
-        <Animated.View style={[styles.authSection, authSectionStyle]}>
+        {/* Auth section — absolutely positioned at bottom so it doesn't shift branding center */}
+        <Animated.View style={[styles.authBottom, { paddingBottom: insets.bottom + 20 }, authSectionStyle]}>
           <Animated.View style={btn0Style}>
             <AuthButton
               onPress={handleGoogle}
@@ -255,14 +255,14 @@ export default function WelcomeScreen() {
               </Text>
             </Pressable>
           </Animated.View>
-        </Animated.View>
 
-        <Animated.View style={termsStyle}>
-          <Text style={styles.terms}>
-            By continuing, you agree to our{' '}
-            <Text style={styles.termsLink}>Terms</Text> and{' '}
-            <Text style={styles.termsLink}>Privacy Policy</Text>
-          </Text>
+          <Animated.View style={termsStyle}>
+            <Text style={styles.terms}>
+              By continuing, you agree to our{' '}
+              <Text style={styles.termsLink}>Terms</Text> and{' '}
+              <Text style={styles.termsLink}>Privacy Policy</Text>
+            </Text>
+          </Animated.View>
         </Animated.View>
       </View>
 
@@ -363,10 +363,9 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: spacing['6'],
   },
   brandingWrapper: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -411,9 +410,12 @@ const styles = StyleSheet.create({
     color: colors.auth.textSecondary,
     fontWeight: '400',
   },
-  authSection: {
-    paddingHorizontal: spacing['2'],
-    marginBottom: spacing['4'],
+  authBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: spacing['6'],
   },
   authButton: {
     flexDirection: 'row',
